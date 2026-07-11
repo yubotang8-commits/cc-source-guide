@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 17 - 上下文压缩（compact）：聊太长怎么办</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 17 - 上下文压缩（compact）：聊太长怎么办</h1>
+
+<h2>问题：对话越聊越长</h2>
+<p>大模型有 token 限制（一次能读的字数上限）。聊得越久，历史消息越多，总 token 就可能超限。</p>
+<div class="diagram">
+对话越来越长：
+
+轮次1: 系统提示词 5000 + 消息 100 = 5100 token  ✓
+轮次5: 系统提示词 5000 + 消息 20000 = 25000 token  ✓
+轮次20: 系统提示词 5000 + 消息 190000 = 195000 token  ✗ 超限！
+
+解决方案：压缩（compact）
+把旧消息总结成一小段文字，腾出空间。
+</div>
+
+<h2>压缩的完整流程</h2>
+<div class="diagram">
+compact 流程（src/services/compact/compact.ts）
+
+1. analyzeContext()
+   └── 计算当前总 token 数
+   └── 判断是否需要压缩
+
+2. getCompactPrompt()
+   └── 生成"请总结以下对话"的提示词
+
+3. 调用大模型总结旧对话
+   └── 单独发一个请求，让大模型写摘要
+
+4. buildPostCompactMessages()
+   └── 用摘要替换旧消息
+   └── 保留最近几轮对话不压缩
+
+结果：
+  压缩前：[消息1] [消息2] ... [消息40] [消息41] [消息42]
+  压缩后：[摘要：消息1-39的内容总结] [消息40] [消息41] [消息42]
+</div>
+
+<h2>两种压缩模式</h2>
+<table>
+<tr><th>模式</th><th>触发条件</th><th>压缩程度</th></tr>
+<tr><td>autoCompact</td><td>token 接近上限自动触发</td><td>全量压缩</td></tr>
+<tr><td>microCompact</td><td>对话逐渐变长时</td><td>轻量压缩，缓存工具结果</td></tr>
+</table>
+
+<h2>microCompact 做了什么</h2>
+<div class="diagram">
+工具调用结果通常很长（比如读取了一个1000行的文件）。
+
+microCompact 的策略：
+  把大段工具结果替换成简短摘要
+
+压缩前：
+  tool_result: "文件内容如下：\n第1行...\n第2行...\n...第1000行..."
+
+压缩后：
+  tool_result: "(已缓存：文件 sort.js，1000行，包含冒泡排序实现)"
+  → 如果后续需要，可以从缓存恢复
+</div>
+
+<h2>用比喻理解</h2>
+<div class="example">
+你和一个新同事合作项目：
+
+第1周：详细讲了需求背景、技术选型（5000字）
+第2周：开始写代码，讨论具体实现（3000字）
+第3周：修 bug、测试（2000字）
+
+如果新来一个人要接手，你不会把3周的所有聊天记录给他看（太长了），
+而是写一个摘要："第1周确定了用 React + TypeScript，第2周完成了登录模块，第3周在修 bug"。
+
+compact 做的就是这件事：把旧对话总结成摘要，让人（大模型）能快速了解上下文。
+</div>
+
+<h2>压缩后的消息结构</h2>
+<div class="diagram">
+压缩后的消息列表：
+
+1. SystemMessage: "以下是之前对话的摘要：..."
+2. 保留的最近几轮对话（原样不动）
+3. 新的用户消息
+
+这样大模型既知道之前聊了什么（摘要），
+又能看到最近的详细对话（完整保留）。
+</div>
+
+<div class="note">compact 是"用空间换时间"的反面——"用精度换空间"。摘要会丢失细节，但能让对话继续下去。</div>
+
+<div class="nav">
+<a href="day16.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day18.html">下一天 →</a>
+</div>
+</body>
+</html>

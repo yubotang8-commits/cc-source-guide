@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 11 - 系统提示词构建（下）：动态上下文注入</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 11 - 系统提示词构建（下）：动态上下文注入</h1>
+
+<h2>动态注入了什么</h2>
+<p>基础提示词是固定的，但每次请求还需要注入"此时此刻"的信息：</p>
+<div class="diagram">
+系统提示词的组成（按注入顺序）
+
+┌─────────────────────────────┐
+│ 1. 基础提示词（固定）         │  你是编程助手……
+├─────────────────────────────┤
+│ 2. 系统上下文（动态）         │  当前目录、git分支、操作系统
+├─────────────────────────────┤
+│ 3. 用户上下文（动态）         │  用户偏好、之前的行为
+├─────────────────────────────┤
+│ 4. 记忆内容（动态）           │  MEMORY.md 中的内容
+├─────────────────────────────┤
+│ 5. CLAUDE.md（动态）          │  项目级自定义规则
+├─────────────────────────────┤
+│ 6. 工具描述（动态）           │  可用工具列表 + MCP工具
+└─────────────────────────────┘
+</div>
+
+<h2>系统上下文 getSystemContext()</h2>
+<p>来自 <code>src/context.ts</code>，收集当前环境信息：</p>
+<div class="example">
+系统上下文示例：
+
+当前工作目录: /home/user/my-project
+操作系统: Linux
+Git 分支: feature/login
+Git 状态: 有2个未提交的修改
+项目根目录: /home/user/my-project
+日期: 2026-07-02
+</div>
+
+<h2>CLAUDE.md 的注入</h2>
+<p>项目根目录可以放一个 <code>CLAUDE.md</code> 文件，写上项目专属的规则：</p>
+<div class="example">
+CLAUDE.md 示例：
+
+# 项目规则
+- 使用 TypeScript strict 模式
+- 测试框架用 vitest
+- 提交信息格式：type(scope): description
+- 不要修改 src/generated/ 下的文件
+
+CC 会在系统提示词中注入这些规则，大模型就会遵守。
+</div>
+
+<h2>CLAUDE.md 的查找顺序</h2>
+<div class="diagram">
+CC 会从多个位置找 CLAUDE.md：
+
+1. ~/.claude/CLAUDE.md          ← 全局规则（对所有项目生效）
+2. 项目根/CLAUDE.md             ← 项目规则
+3. 当前目录/CLAUDE.md           ← 子目录规则
+4. .claude/CLAUDE.md            ← 隐藏目录中的规则
+
+所有找到的都会注入，更具体的规则优先级更高。
+</div>
+
+<h2>prependUserContext 与 appendSystemContext</h2>
+<div class="diagram">
+最终拼装：
+
+prependUserContext()  →  在消息前面加用户信息
+    │
+    ▼
+基础系统提示词 + 动态上下文
+    │
+    ▼
+appendSystemContext() →  在消息后面加系统信息
+    │
+    ▼
+最终发送给大模型的完整消息列表
+</div>
+
+<h2>用比喻理解</h2>
+<div class="example">
+你给新来的员工一份手册：
+
+固定部分 = 公司规章制度（不会变）
+动态部分 = 今天的工作安排、当前项目状态（每天不同）
+
+CLAUDE.md = 某个部门自己的补充规定
+系统上下文 = "你当前在3楼办公区，打印机在走廊尽头"这种实时信息
+</div>
+
+<div class="note">系统提示词 = 固定规则 + 实时信息 + 项目定制 + 用户记忆。每次请求都重新拼装，确保大模型掌握最新上下文。</div>
+
+<div class="nav">
+<a href="day10.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day12.html">下一天 →</a>
+</div>
+</body>
+</html>

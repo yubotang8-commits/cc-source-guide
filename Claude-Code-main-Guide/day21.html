@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 21 - 工具系统（下）：工具执行与权限控制</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 21 - 工具系统（下）：工具执行与权限控制</h1>
+
+<h2>工具调用的完整流程</h2>
+<div class="diagram">
+大模型回复中包含工具调用请求：
+  { type: "tool_use", name: "Bash", input: { command: "rm -rf /" } }
+    │
+    ▼
+queryLoop() 检测到 tool_use
+    │
+    ▼
+runTools()（services/tools/toolOrchestration.ts）
+    │
+    ├── 1. 查找工具注册表 → 找到 BashTool
+    ├── 2. 权限检查 → useCanUseTool hook
+    │   ├── 允许 → 继续
+    │   ├── 拒绝 → 返回"用户拒绝了此操作"
+    │   └── 需要确认 → 弹窗询问用户
+    │
+    ├── 3. 执行工具 execute(input)
+    │
+    ├── 4. 收集执行结果
+    │
+    └── 5. 结果作为 tool_result 加入消息
+    │
+    ▼
+回到 queryLoop()，把工具结果发给大模型
+</div>
+
+<h2>权限控制的层级</h2>
+<div class="diagram">
+权限模式（permissionMode）：
+
+1. default（默认）
+   └── 危险操作需要确认，安全操作自动允许
+   └── 如: 读取文件 ✓自动  删除文件 ✗需确认
+
+2. acceptEdits（接受编辑）
+   └── 文件编辑自动允许，其他危险操作需确认
+
+3. bypassPermissions（跳过权限）
+   └── 所有操作自动允许（危险！）
+
+4. plan（计划模式）
+   └── 只读操作允许，写操作需确认
+</div>
+
+<h2>useCanUseTool hook</h2>
+<div class="example">
+权限检查逻辑（简化）：
+
+function useCanUseTool(tool, input) {
+  // 1. 检查全局权限模式
+  if (permissionMode === "bypassPermissions") return true
+
+  // 2. 检查工具是否在允许列表
+  if (allowedTools.includes(tool.name)) return true
+
+  // 3. 检查是否在拒绝列表
+  if (deniedTools.includes(tool.name)) return false
+
+  // 4. 根据工具类型判断
+  if (tool.isDestructive) {
+    return askUser()  // 弹窗让用户决定
+  }
+
+  return true  // 安全操作默认允许
+}
+</div>
+
+<h2>工具执行的并发控制</h2>
+<div class="diagram">
+大模型可能一次要求调用多个工具：
+
+大模型回复：
+  tool_use: Read("a.txt")
+  tool_use: Read("b.txt")
+  tool_use: Bash("git status")
+
+执行策略：
+  ├── 读文件操作 → 可以并行（互不干扰）
+  ├── 写文件操作 → 需要排队（可能冲突）
+  └── Bash 命令 → 需要排队（可能有副作用）
+
+CC 会根据工具类型决定并行还是串行。
+</div>
+
+<h2>用比喻理解权限</h2>
+<div class="example">
+权限就像公司里的审批流程：
+
+bypassPermissions = 老板模式：签字随便签，不用审批
+default = 普通模式：小额支出自己批，大额支出要领导签
+plan = 实习生模式：只能看，不能改
+
+useCanUseTool = 门禁系统：
+  你的卡能刷开哪些门，取决于你的权限级别。
+  有些门刷卡就开，有些门需要保安确认。
+</div>
+
+<div class="note">工具执行是"大模型动手操作"的环节，权限控制是"安全阀"——防止大模型做出用户不期望的操作。</div>
+
+<div class="nav">
+<a href="day20.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day22.html">下一天 →</a>
+</div>
+</body>
+</html>

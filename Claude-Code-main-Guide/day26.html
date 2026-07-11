@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 26 - 大模型调用（中）：流式响应处理</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 26 - 大模型调用（中）：流式响应处理</h1>
+
+<h2>为什么用流式</h2>
+<p>大模型生成文字是一个字一个字"蹦出来"的。如果等全部生成完再显示，用户要盯着空白屏幕等很久。流式就是"边生成边显示"。</p>
+<div class="diagram">
+非流式：
+  用户等待 10秒 → 完整回复一次性显示
+
+流式：
+  用户等待 0.5秒 → "好" 出现
+  0.1秒后 → "好的，" 出现
+  0.1秒后 → "好的，我来" 出现
+  ...逐渐显示完整回复
+
+体验差异巨大！
+</div>
+
+<h2>流式响应的事件类型</h2>
+<div class="diagram">
+大模型返回的是一个事件流（Stream），每个事件是不同类型：
+
+1. message_start      ← 消息开始
+2. content_block_start ← 一个内容块开始
+3. content_block_delta ← 内容块的一小块数据
+4. content_block_stop  ← 一个内容块结束
+5. message_delta      ← 消息级更新（如 stop_reason）
+6. message_stop       ← 消息结束
+</div>
+
+<h2>queryLoop 如何处理流式响应</h2>
+<div class="diagram">
+queryLoop()（src/query.ts）
+
+for await (event of stream) {
+    │
+    ├── message_start
+    │   └── 初始化 AssistantMessage
+    │
+    ├── content_block_start (type: text)
+    │   └── 开始一个文本块
+    │
+    ├── content_block_delta (type: text_delta)
+    │   └── 拿到几个字 → 立即显示在终端
+    │   └── "好" → "好的" → "好的，我来" → ...
+    │
+    ├── content_block_start (type: tool_use)
+    │   └── 大模型想调用工具！
+    │
+    ├── content_block_delta (type: input_json_delta)
+    │   └── 工具参数逐渐到达
+    │   └── { "file_path": "a.t → { "file_path": "a.txt" }
+    │
+    ├── content_block_stop
+    │   └── 内容块结束
+    │
+    ├── message_delta (stop_reason: "end_turn")
+    │   └── 大模型说完了 → 退出循环
+    │
+    └── message_delta (stop_reason: "tool_use")
+        └── 大模型要调工具 → 执行工具 → 回到循环
+}
+</div>
+
+<h2>流式处理中的关键决策</h2>
+<div class="diagram">
+遇到 tool_use 时：
+
+方案A（CC 采用的）：
+  等工具参数全部到齐 → 执行工具 → 把结果发给大模型 → 继续流式
+
+方案B（不推荐的）：
+  收到一个字就尝试执行 → 参数不完整 → 出错
+
+所以即使流式接收，工具执行要等参数完整。
+</div>
+
+<h2>用比喻理解</h2>
+<div class="example">
+流式响应 = 看直播
+
+非流式 = 看录播：等视频全部下载完才能看
+流式 = 看直播：边播边看，虽然可能偶尔卡顿，但不用等
+
+content_block_delta = 直播的每一帧画面
+message_stop = 直播结束
+tool_use = 主播说"帮我拿一下道具" → 你去拿 → 递给主播 → 直播继续
+</div>
+
+<div class="note">流式的核心：不等待完整结果，边收边处理。文字直接显示，工具调用等参数完整再执行。</div>
+
+<div class="nav">
+<a href="day25.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day27.html">下一天 →</a>
+</div>
+</body>
+</html>

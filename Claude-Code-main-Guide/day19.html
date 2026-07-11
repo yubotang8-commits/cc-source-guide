@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 19 - 全局状态管理（下）：AppState 与响应式更新</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 19 - 全局状态管理（下）：AppState 与响应式更新</h1>
+
+<h2>AppState：比 bootstrap state 更"活"的状态</h2>
+<p>bootstrap state 偏静态，AppState 则是频繁变化的"运行时状态"：</p>
+<div class="diagram">
+AppState（src/state/AppStateStore.ts）包含：
+
+┌─────────────────────────────────────┐
+│ settings: {...}            ← 用户设置 │
+│ mainLoopModel: "sonnet"    ← 当前模型 │
+│ toolPermissionContext: {...} ← 权限   │
+│ mcp:                       ← MCP相关  │
+│   clients: []               ← 连接列表 │
+│   tools: []                 ← MCP工具  │
+│   commands: []              ← MCP命令  │
+│ plugins: {...}              ← 插件     │
+│ tasks: {...}                ← 任务状态 │
+│ agentNameRegistry: Map      ← Agent名 │
+└─────────────────────────────────────┘
+</div>
+
+<h2>响应式更新：React 组件如何感知状态变化</h2>
+<p>CC 用 React（Ink）渲染 UI，React 组件需要知道状态变了才能重新渲染。</p>
+<div class="diagram">
+状态变化 → UI 更新的流程：
+
+1. 某处调用 store.setState({ model: "opus" })
+2. Store 通知订阅者
+3. onChangeAppState() 被调用
+4. React 组件通过 useAppState() hook 感知变化
+5. 组件重新渲染，显示新的模型名
+</div>
+
+<h2>useAppState hook</h2>
+<div class="example">
+组件中使用：
+function ModelIndicator() {
+  const model = useAppState(s => s.mainLoopModel)
+  return <Text>当前模型: {model}</Text>
+}
+
+当 mainLoopModel 变化时，ModelIndicator 自动重新渲染。
+不需要手动订阅或刷新。
+</div>
+
+<h2>AppState.tsx：状态初始化组件</h2>
+<div class="diagram">
+&lt;AppState&gt; 组件在应用最顶层
+    │
+    ├── 初始化 Store
+    ├── 订阅各种事件源
+    │   ├── MCP 连接状态变化
+    │   ├── 工具权限变化
+    │   ├── 设置变化
+    │   └── ...
+    ├── 状态变化时更新 Store
+    └── 子组件通过 hook 获取状态
+</div>
+
+<h2>状态变化的触发来源</h2>
+<div class="diagram">
+哪些事情会改变 AppState：
+
+1. 用户操作
+   └── 切换模型、修改权限、改设置
+
+2. 大模型回复
+   └── 请求工具权限、改变行为模式
+
+3. 系统事件
+   └── MCP 服务器断开连接、文件变化
+
+4. 工具执行结果
+   └── 文件已读取、命令已执行
+
+所有变化都通过 setState 统一入口，保证可追踪。
+</div>
+
+<h2>用比喻理解</h2>
+<div class="example">
+AppState = 餐厅的"大屏看板"
+
+厨房、前台、外卖员都看这个看板：
+  当前菜单、可用食材、订单状态、设备状态
+
+任何岗位改了看板内容（setState），
+其他岗位抬头一看就知道了（useAppState 订阅）。
+
+不需要挨个通知，看板是唯一的真相来源。
+</div>
+
+<div class="note">AppState 是"运行时的大脑"。bootstrap state 是启动时的配置，AppState 是运行中的一切动态数据。两者配合，构成了 CC 的完整状态体系。</div>
+
+<div class="nav">
+<a href="day18.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day20.html">下一天 →</a>
+</div>
+</body>
+</html>

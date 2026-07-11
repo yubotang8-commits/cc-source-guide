@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 14 - 记忆系统（下）：记忆检索与截断策略</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 14 - 记忆系统（下）：记忆检索与截断策略</h1>
+
+<h2>记忆检索：findRelevantMemories</h2>
+<p>不是所有记忆每次都需要注入。<code>findRelevantMemories()</code> 根据当前对话内容筛选相关记忆。</p>
+
+<div class="diagram">
+用户说："帮我检查日志系统的问题"
+    │
+    ▼
+findRelevantMemories("帮我检查日志系统的问题")
+    │
+    ├── 扫描所有记忆文件
+    ├── 匹配相关度
+    │   ├── user_role.md: "数据科学家，关注日志" → 高度相关 ✓
+    │   ├── feedback_style.md: "不要尾部总结"    → 不太相关 ✗
+    │   └── reference_dashboard.md: "监控面板地址" → 相关 ✓
+    │
+    └── 返回相关记忆列表
+</div>
+
+<h2>截断策略：MEMORY.md 的 200 行限制</h2>
+<p>MEMORY.md 最多 200 行，超过就会被截断：</p>
+<div class="diagram">
+MEMORY.md 有 250 行
+    │
+    ▼
+truncateEntriespointContent()
+    │
+    ├── 保留前 200 行
+    ├── 删除后面的 50 行
+    │   （较旧/较不重要的记忆被移除）
+    │
+    ▼
+截断后的 MEMORY.md（200 行）
+</div>
+
+<h2>为什么要截断</h2>
+<div class="example">
+系统提示词有 token 限制（大模型一次能读的总量有限）。
+
+如果记忆太多，系统提示词就会太长：
+  系统提示词 50000 token + 对话历史 100000 token = 超出限制！
+
+所以必须控制记忆的体积。200 行是经验上平衡"信息量"和"成本"的值。
+</div>
+
+<h2>记忆的生命周期</h2>
+<div class="diagram">
+一条记忆的完整生命周期：
+
+1. 创建：大模型判断值得记住 → 写入 .md 文件
+2. 使用：每次构建提示词 → 读取并注入
+3. 计数：每次被使用 → recallCount + 1
+4. 截断：MEMORY.md 超长 → 较旧的记忆可能被移除
+5. 过时：记忆不再准确 → 用户手动删除或大模型更新
+
+记忆不是永久的，它可能被截断、更新或删除。
+</div>
+
+<h2>什么不该存为记忆</h2>
+<table>
+<tr><th>不该存的</th><th>原因</th></tr>
+<tr><td>代码模式/架构</td><td>代码本身就是最好的记录</td></tr>
+<tr><td>git 历史</td><td>git log 是权威来源</td></tr>
+<tr><td>调试方案</td><td>修复已经在代码里了</td></tr>
+<tr><td>临时任务状态</td><td>用完即弃，不值得跨会话保存</td></tr>
+</table>
+
+<div class="example">
+记忆应该存"代码里看不出来的、但影响工作方式的信息"：
+
+✓ "用户是数据科学家" → 代码里看不出来，但影响回答方式
+✗ "项目用了 React" → package.json 里能看到，不需要记
+</div>
+
+<div class="note">记忆系统的核心约束：信息量 vs 成本。截断是为了在有限的空间里保留最有价值的记忆。</div>
+
+<div class="nav">
+<a href="day13.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day15.html">下一天 →</a>
+</div>
+</body>
+</html>

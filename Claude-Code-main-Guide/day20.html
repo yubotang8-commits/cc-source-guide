@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 20 - 工具系统（上）：工具的定义与注册</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 20 - 工具系统（上）：工具的定义与注册</h1>
+
+<h2>工具是什么</h2>
+<p>大模型只会"说话"，不能直接操作你的电脑。工具就是给大模型的"手"——让它能读文件、写文件、执行命令。</p>
+<div class="diagram">
+没有工具的大模型：
+  用户: "帮我创建一个 hello.txt"
+  大模型: "你可以在终端运行 echo hello > hello.txt"  ← 只能告诉你怎么做
+
+有工具的大模型：
+  用户: "帮我创建一个 hello.txt"
+  大模型: 调用 Write 工具 → 文件真的被创建了  ← 直接帮你做
+</div>
+
+<h2>CC 有哪些工具</h2>
+<table>
+<tr><th>工具</th><th>目录</th><th>功能</th></tr>
+<tr><td>Bash</td><td>tools/BashTool/</td><td>执行终端命令</td></tr>
+<tr><td>Read</td><td>tools/FileReadTool/</td><td>读取文件</td></tr>
+<tr><td>Edit</td><td>tools/FileEditTool/</td><td>编辑文件（局部替换）</td></tr>
+<tr><td>Write</td><td>tools/FileWriteTool/</td><td>创建/覆写文件</td></tr>
+<tr><td>Glob</td><td>tools/GlobTool/</td><td>按文件名模式查找</td></tr>
+<tr><td>Grep</td><td>tools/GrepTool/</td><td>搜索文件内容</td></tr>
+<tr><td>Agent</td><td>tools/AgentTool/</td><td>派生子 Agent</td></tr>
+<tr><td>MCP</td><td>tools/MCPTool/</td><td>调用 MCP 外部工具</td></tr>
+</table>
+
+<h2>工具的定义结构</h2>
+<p>每个工具都需要告诉大模型"我叫什么、能做什么、需要什么参数"：</p>
+<div class="example">
+一个工具的定义（简化版）：
+
+{
+  name: "Read",                              // 工具名
+  description: "读取文件内容",                  // 功能描述
+  input_schema: {                            // 参数格式
+    type: "object",
+    properties: {
+      file_path: { type: "string" },         // 文件路径
+      offset: { type: "number" },            // 起始行
+      limit: { type: "number" }              // 读取行数
+    },
+    required: ["file_path"]
+  }
+}
+</div>
+
+<h2>工具注册流程</h2>
+<div class="diagram">
+src/tools.ts 中的注册过程：
+
+1. 导入所有工具模块
+2. 每个工具模块导出：
+   ├── name        工具名称
+   ├── description 功能描述
+   ├── inputSchema 参数格式
+   └── execute()   执行函数
+
+3. 注册到一个统一列表
+4. 列表随系统提示词一起发给大模型
+
+大模型看到工具列表，就知道自己"能做什么"。
+</div>
+
+<h2>工具描述的重要性</h2>
+<div class="diagram">
+大模型选择工具的依据就是 description：
+
+如果 description 写得模糊：
+  "Read: 读取东西"  → 大模型可能用错
+
+如果 description 写得清楚：
+  "Read: 读取指定文件的内容，返回带行号的文本"
+  → 大模型能准确判断该不该用
+
+所以工具描述也是提示词工程的一部分！
+</div>
+
+<div class="note">工具 = 大模型的"手"。定义工具就是告诉大模型"你有一双手，长这样，能做这些事"。</div>
+
+<div class="nav">
+<a href="day19.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day21.html">下一天 →</a>
+</div>
+</body>
+</html>

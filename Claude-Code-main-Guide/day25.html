@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 25 - 大模型调用（上）：请求组装与发送</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 25 - 大模型调用（上）：请求组装与发送</h1>
+
+<h2>从消息到 API 请求</h2>
+<p>CC 收集好所有信息后，要组装成大模型 API 要求的格式才能发送。</p>
+
+<div class="diagram">
+API 请求的组装流程：
+
+1. 消息列表（已 normalize）
+   └── [UserMessage, AssistantMessage, UserMessage, ...]
+
+2. 系统提示词
+   └── "你是 Claude Code……"
+
+3. 工具列表
+   └── [Read, Write, Bash, Grep, ...]
+
+4. 模型参数
+   └── model, maxTokens, temperature, ...
+
+5. 特殊参数
+   └── beta 标记（prompt caching, thinking 等）
+   └── cache_control 提示（哪些内容可以被缓存）
+
+    │
+    ▼
+buildApiRequest() 把以上所有内容打包
+    │
+    ▼
+发送给 Anthropic API
+</div>
+
+<h2>API 请求长什么样</h2>
+<div class="example">
+最终发给大模型的请求（简化版）：
+
+{
+  model: "claude-sonnet-4-20250514",
+  max_tokens: 16384,
+  system: [
+    {
+      type: "text",
+      text: "你是 Claude Code，一个编程助手……",
+      cache_control: { type: "ephemeral" }   ← 提示：这部分可以被缓存
+    }
+  ],
+  messages: [
+    { role: "user", content: [{ type: "text", text: "帮我写个函数" }] },
+    { role: "assistant", content: [{ type: "text", text: "好的" }] }
+  ],
+  tools: [
+    { name: "Read", description: "读取文件", input_schema: {...} },
+    { name: "Write", description: "写入文件", input_schema: {...} }
+  ],
+  stream: true    ← 流式传输
+}
+</div>
+
+<h2>cache_control 是什么</h2>
+<div class="diagram">
+大模型 API 支持"缓存"：
+
+没有缓存：
+  每次请求都把系统提示词完整发送
+  → 系统5000字 × 20次请求 = 10万字重复传输
+
+有缓存：
+  第一次发送系统提示词 → 服务器缓存
+  后续请求只说"用之前缓存的那段"
+  → 省 token、省时间、省钱
+
+cache_control: { type: "ephemeral" }
+意思是"这段内容短时间内不会变，可以缓存"
+</div>
+
+<h2>getAnthropicClient：获取 API 客户端</h2>
+<div class="diagram">
+getAnthropicClient()
+    │
+    ├── 读取 API Key（环境变量或配置文件）
+    ├── 设置 Base URL（可能是代理地址）
+    ├── 配置传输方式（HTTP/HTTPS）
+    │
+    ▼
+返回 Anthropic SDK 的 Client 实例
+    │
+    ▼
+client.messages.stream({...}) 发起流式请求
+</div>
+
+<h2>用比喻理解</h2>
+<div class="example">
+API 请求 = 寄快递
+
+消息 = 包裹里的东西
+系统提示词 = 包裹上的说明标签
+工具列表 = "收件人能使用的工具清单"
+cache_control = "这个标签下次还能用，别扔"
+stream: true = "收到一个就告诉我一个，别等全收完再说"
+
+buildApiRequest = 打包员，把东西装箱
+getAnthropicClient = 快递公司，负责运输
+</div>
+
+<div class="note">请求组装是"最后一道工序"——把所有准备好的材料打包成大模型 API 认识的格式，然后通过网络发送出去。</div>
+
+<div class="nav">
+<a href="day24.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day26.html">下一天 →</a>
+</div>
+</body>
+</html>

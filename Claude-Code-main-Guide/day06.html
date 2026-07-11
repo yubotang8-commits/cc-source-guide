@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 06 - 用户输入捕获：从键盘按键到程序数据</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 06 - 用户输入捕获：从键盘按键到程序数据</h1>
+
+<h2>输入的完整路径</h2>
+<div class="diagram">
+你的键盘
+    │ 按下 "h" "e" "l" "l" "o" Enter
+    ▼
+Ink 的 useInput hook（监听终端按键）
+    │
+    ▼
+PromptInput 组件（管理输入框状态）
+    │  拼接字符、处理退格、回车提交
+    ▼
+useTextInput hook（封装输入逻辑）
+    │
+    ▼
+onSubmit 回调触发
+    │  拿到完整字符串 "hello"
+    ▼
+processUserInput() 函数
+    │  进入下一课的内容……
+</div>
+
+<h2>useInput：终端里的"键盘监听器"</h2>
+<p>Ink 提供的 <code>useInput</code> 可以捕获终端里每一个按键：</p>
+<div class="example">
+useInput((input, key) => {
+  // input = 按下的字符，比如 "a"
+  // key = 特殊键状态，比如 key.enter、key.backspace、key.tab
+
+  if (key.enter) {
+    // 用户按了回车，提交输入
+  }
+  if (key.backspace) {
+    // 用户按了退格，删除最后一个字符
+  }
+  if (key.tab) {
+    // 用户按了 Tab，触发自动补全
+  }
+})
+</div>
+
+<h2>PromptInput 的状态</h2>
+<p>输入框需要记住几个东西：</p>
+<table>
+<tr><th>状态</th><th>说明</th><th>例子</th></tr>
+<tr><td>value</td><td>当前输入的文字</td><td>"帮我写个"</td></tr>
+<tr><td>mode</td><td>输入模式</td><td>普通模式 / 多行模式</td></tr>
+<tr><td>cursorPosition</td><td>光标在哪</td><td>第4个字符后面</td></tr>
+<tr><td>history</td><td>历史输入记录</td><td>["上次输入1", "上次输入2"]</td></tr>
+</table>
+
+<h2>特殊输入方式</h2>
+<div class="diagram">
+不只是打字，还有这些输入方式：
+
+1. 普通打字        → "帮我写个函数"
+2. 斜杠命令        → "/commit" → 走命令处理路径
+3. 粘贴内容        → 可以粘贴多行文本
+4. 粘贴图片        → 图片会被转成 base64 编码
+5. IDE 拖拽选择    → 从编辑器拖代码片段进来
+6. 上下箭头        → 翻历史输入记录
+</div>
+
+<div class="note">输入捕获是"你说话"的第一步。从按键到字符串，CC 用 Ink 的 useInput + 自定义的 PromptInput 组件完成这个过程。</div>
+
+<div class="nav">
+<a href="day05.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day07.html">下一天 →</a>
+</div>
+</body>
+</html>

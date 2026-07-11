@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 23 - MCP 管理（上）：协议与客户端</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 23 - MCP 管理（上）：协议与客户端</h1>
+
+<h2>MCP 是什么</h2>
+<p>MCP = Model Context Protocol（模型上下文协议）。它是一种标准，让 CC 能连接外部工具服务。</p>
+<div class="diagram">
+没有 MCP：
+  CC 只能用内置工具（Bash、Read、Write……）
+
+有了 MCP：
+  CC 可以连接数据库、调用 API、操作第三方服务……
+
+就像手机装 App：
+  出厂自带 = 内置工具
+  应用商店下载 = MCP 工具
+</div>
+
+<h2>MCP 的通信方式</h2>
+<table>
+<tr><th>传输类型</th><th>怎么通信</th><th>场景</th></tr>
+<tr><td>stdio</td><td>启动一个子进程，通过输入输出通信</td><td>本地工具服务</td></tr>
+<tr><td>sse</td><td>通过 HTTP 长连接</td><td>远程服务</td></tr>
+<tr><td>http</td><td>标准 HTTP 请求</td><td>远程服务</td></tr>
+<tr><td>ws</td><td>WebSocket 双向通信</td><td>实时服务</td></tr>
+<tr><td>sdk</td><td>SDK 内部直接调用</td><td>嵌入在其他程序中时</td></tr>
+</table>
+
+<h2>MCP 客户端架构</h2>
+<div class="diagram">
+McpClient（src/services/mcp/client.ts）
+    │
+    ├── 连接管理
+    │   ├── connect()        ← 建立连接
+    │   ├── disconnect()     ← 断开连接
+    │   └── reconnect()      ← 重新连接
+    │
+    ├── 工具发现
+    │   └── listTools()      ← 问服务器"你有哪些工具？"
+    │
+    ├── 工具调用
+    │   └── callTool(name, args) ← 调用服务器的工具
+    │
+    ├── 资源访问
+    │   ├── listResources()  ← 列出可用资源
+    │   └── readResource(uri) ← 读取资源内容
+    │
+    └── 提示词获取
+        └── listPrompts()    ← 获取服务器提供的提示词模板
+</div>
+
+<h2>MCP 工具如何注册到 CC</h2>
+<div class="diagram">
+MCP 工具注册流程：
+
+1. McpClient 连接到 MCP 服务器
+2. 调用 listTools() 获取工具列表
+3. 每个工具包装成 MCPTool
+   └── 工具名加前缀避免冲突
+   └── buildMcpToolName(serverName, toolName)
+4. 注册到 CC 的工具列表
+5. 大模型就能看到并使用这些工具
+
+例：服务器 "db" 提供工具 "query"
+  → CC 中工具名为 "db__query"
+</div>
+
+<h2>用比喻理解 MCP</h2>
+<div class="example">
+MCP 就像 USB 接口：
+
+  USB 是标准协议 → MCP 是标准协议
+  各种设备通过 USB 连电脑 → 各种服务通过 MCP 连 CC
+  鼠标、键盘、打印机 → 数据库、API、搜索引擎
+
+你不需要为每个设备写专门的驱动（工具），
+只要它符合 USB 标准（MCP 协议），就能直接用。
+</div>
+
+<div class="note">MCP 的核心价值：标准化。只要服务实现了 MCP 协议，CC 就能直接调用，不需要为每个服务单独写集成代码。</div>
+
+<div class="nav">
+<a href="day22.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day24.html">下一天 →</a>
+</div>
+</body>
+</html>

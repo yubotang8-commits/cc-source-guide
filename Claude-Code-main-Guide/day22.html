@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 22 - 技能系统（Skills）：加载与执行</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 22 - 技能系统（Skills）：加载与执行</h1>
+
+<h2>技能和工具有什么区别</h2>
+<div class="diagram">
+工具（Tool）：
+  └── 单一操作，如"读文件""执行命令"
+  └── 大模型按需调用
+
+技能（Skill）：
+  └── 一套预设的流程模板
+  └── 包含多个步骤，可能调用多个工具
+  └── 用户用斜杠命令触发
+
+举例：
+  工具 = 锤子（单一功能）
+  技能 = "组装桌子"的说明书（按步骤用锤子、螺丝刀、扳手）
+</div>
+
+<h2>技能的格式</h2>
+<p>每个技能是一个 Markdown 文件，有 frontmatter 头部：</p>
+<div class="example">
+文件：~/.claude/skills/commit.md
+
+---
+name: commit
+description: 自动生成 git commit
+when_to_use: 当用户说"提交"或输入 /commit 时
+allowed-tools: [Bash, Read, Glob, Grep]
+arguments: [message]
+model: sonnet-4
+effort: medium
+---
+
+## 步骤
+1. 用 Bash 执行 git diff 查看变更
+2. 分析变更内容
+3. 生成规范的 commit message
+4. 执行 git commit
+</div>
+
+<h2>技能加载流程</h2>
+<div class="diagram">
+loadSkillsDir()（src/skills/loadSkillsDir.ts）
+
+1. 扫描技能目录
+   ├── ~/.claude/skills/          ← 全局技能
+   ├── .claude/skills/            ← 项目技能
+   └── src/skills/bundled/        ← 内置技能
+
+2. 读取每个 .md 文件
+   └── 解析 frontmatter（名称、描述、参数等）
+
+3. 去重
+   └── 按"文件身份"去重（处理符号链接等）
+
+4. 转换成命令
+   └── createSkillCommand()
+   └── 把 Markdown 变成可执行的 Command 对象
+
+5. 注册到命令表
+   └── 用户可以通过 /skill_name 触发
+</div>
+
+<h2>技能的执行</h2>
+<div class="diagram">
+用户输入: /commit "修复登录bug"
+    │
+    ▼
+SkillTool（src/tools/SkillTool/SkillTool.ts）
+    │
+    ├── 解析技能名和参数
+    ├── 读取技能的 Markdown 内容
+    ├── 组装提示词：
+    │   └── 技能描述 + 步骤 + 用户参数
+    │
+    ├── 选择执行方式：
+    │   ├── 方式A：在当前会话中执行
+    │   └── 方式B：派生子 Agent 执行
+    │
+    └── 大模型按照技能步骤执行工具调用
+</div>
+
+<h2>技能的配置项</h2>
+<table>
+<tr><th>配置</th><th>说明</th><th>例子</th></tr>
+<tr><td>allowed-tools</td><td>允许使用的工具列表</td><td>[Bash, Read]</td></tr>
+<tr><td>model</td><td>使用的模型</td><td>sonnet-4</td></tr>
+<tr><td>effort</td><td>努力程度</td><td>low / medium / high</td></tr>
+<tr><td>arguments</td><td>技能参数</td><td>[message, scope]</td></tr>
+<tr><td>hooks</td><td>执行前后的钩子</td><td>pre_execute: "npm test"</td></tr>
+</table>
+
+<h2>MCP 也能提供技能</h2>
+<div class="diagram">
+除了本地 .md 文件，MCP 服务器也可以提供技能：
+
+fetchMcpSkillsForClient()
+    │
+    ▼
+MCP 服务器返回技能列表
+    │
+    ▼
+同样注册到命令表
+    │
+    ▼
+用户使用时无感知区别
+
+来源可以是本地的，也可以是远程的。
+</div>
+
+<div class="note">技能 = 可复用的流程模板。用 Markdown 写，简单直观。本质是"预设好的提示词 + 工具调用策略"。</div>
+
+<div class="nav">
+<a href="day21.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day23.html">下一天 →</a>
+</div>
+</body>
+</html>

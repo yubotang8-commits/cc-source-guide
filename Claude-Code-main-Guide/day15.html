@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 15 - 消息类型体系：7 种消息长什么样</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 15 - 消息类型体系：7 种消息长什么样</h1>
+
+<h2>7 种消息类型</h2>
+<p>CC 内部不是只有"用户说的"和"大模型回的"两种消息，而是有 7 种：</p>
+
+<table>
+<tr><th>类型</th><th>谁发的</th><th>干什么</th></tr>
+<tr><td>UserMessage</td><td>用户</td><td>你说的话</td></tr>
+<tr><td>AssistantMessage</td><td>大模型</td><td>大模型的回复</td></tr>
+<tr><td>ProgressMessage</td><td>系统</td><td>流式传输中的进度</td></tr>
+<tr><td>SystemMessage</td><td>系统</td><td>系统通知（如权限变更）</td></tr>
+<tr><td>AttachmentMessage</td><td>用户</td><td>附加的文件/图片</td></tr>
+<tr><td>HookResultMessage</td><td>Hook</td><td>钩子脚本的执行结果</td></tr>
+<tr><td>ToolUseSummaryMessage</td><td>系统</td><td>工具调用的摘要</td></tr>
+<tr><td>TombstoneMessage</td><td>系统</td><td>"墓碑"——标记被删除的消息</td></tr>
+</table>
+
+<h2>消息流转图</h2>
+<div class="diagram">
+一次完整对话的消息序列：
+
+UserMessage:     "帮我写个排序函数"
+AssistantMessage: "好的，我来写一个冒泡排序..."
+  ├── ToolUseSummary: "创建了 sort.js"
+  └── ToolUseSummary: "编辑了 sort.js 第3行"
+SystemMessage:    "文件已保存"
+UserMessage:     "改成快速排序"
+AssistantMessage: "已修改为快速排序实现"
+</div>
+
+<h2>每种消息的内部结构</h2>
+<div class="example">
+UserMessage:
+{
+  role: "user",
+  content: [{ type: "text", text: "帮我写个函数" }]
+}
+
+AssistantMessage:
+{
+  role: "assistant",
+  content: [
+    { type: "text", text: "好的，我来写" },
+    { type: "tool_use", name: "Write", input: {...} }
+  ]
+}
+
+TombstoneMessage:
+{
+  role: "user",
+  content: "(此消息已被删除)",
+  type: "tombstone"
+}
+</div>
+
+<h2>TombstoneMessage 是什么</h2>
+<p>删消息不是真的删掉——而是用"墓碑"替换。这样消息序号不会乱。</p>
+<div class="diagram">
+删除前：
+  消息1  消息2  消息3  消息4
+
+删除消息2后：
+  消息1  🪦墓碑  消息3  消息4
+
+而不是：
+  消息1  消息3  消息4  ← 序号变了，可能导致引用错乱
+</div>
+
+<div class="example">
+想象一本书的目录：如果删掉第3章，你不能把第4章改成第3章，因为其他地方可能已经引用了"第4章"。
+用"已删除"替代第3章的内容，保持其他章节编号不变。
+</div>
+
+<h2>发送给大模型前的转换</h2>
+<p>CC 内部的消息格式和大模型 API 要求的格式不同，发送前需要转换：</p>
+<div class="diagram">
+CC 内部格式（7种消息类型）
+    │
+    ▼ normalizeMessagesForAPI()
+    │
+大模型 API 格式（只有 user / assistant 两种 role）
+    │
+    ├── UserMessage → { role: "user", content: [...] }
+    ├── AssistantMessage → { role: "assistant", content: [...] }
+    ├── SystemMessage → 合并到 system 字段
+    ├── TombstoneMessage → 跳过
+    └── 其他 → 按规则转换
+</div>
+
+<div class="note">7 种消息类型是 CC 内部的"丰富格式"，发送给大模型时会被简化成 API 要求的格式。</div>
+
+<div class="nav">
+<a href="day14.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day16.html">下一天 →</a>
+</div>
+</body>
+</html>

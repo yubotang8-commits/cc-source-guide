@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 08 - 斜杠命令 vs 普通文本：两条处理路径</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 08 - 斜杠命令 vs 普通文本：两条处理路径</h1>
+
+<h2>两种输入，两条路</h2>
+<div class="diagram">
+用户输入
+    │
+    ├── 以 "/" 开头 ──→ 斜杠命令路径
+    │                    ├── /commit    → 生成提交
+    │                    ├── /config    → 修改配置
+    │                    ├── /help      → 显示帮助
+    │                    ├── /review    → 代码审查
+    │                    └── /skills... → 技能命令
+    │
+    └── 其他 ──────────→ 普通文本路径
+                         → 打包成 UserMessage
+                         → 发给大模型
+</div>
+
+<h2>斜杠命令的解析</h2>
+<div class="diagram">
+processSlashCommand("/commit -m fix bug")
+    │
+    ▼
+解析出：
+  命令名 = "commit"
+  参数   = "-m fix bug"
+    │
+    ▼
+在命令注册表中查找 "commit"
+    │
+    ▼
+找到 → 执行 commit 命令的逻辑
+没找到 → 提示 "未知命令: /commit"
+</div>
+
+<h2>命令注册表</h2>
+<p>所有斜杠命令都在 <code>src/commands/</code> 目录下定义：</p>
+<table>
+<tr><th>命令</th><th>目录</th><th>功能</th></tr>
+<tr><td>/commit</td><td>commands/commit/</td><td>自动生成 git commit</td></tr>
+<tr><td>/config</td><td>commands/config/</td><td>修改 CC 配置</td></tr>
+<tr><td>/help</td><td>内建</td><td>显示帮助信息</td></tr>
+<tr><td>/init</td><td>commands/init/</td><td>初始化项目配置</td></tr>
+<tr><td>/review</td><td>内建</td><td>代码审查</td></tr>
+<tr><td>/skills</td><td>来自 skills/</td><td>用户自定义技能</td></tr>
+</table>
+
+<h2>命令的两种执行方式</h2>
+<div class="diagram">
+斜杠命令执行
+    │
+    ├── 方式1：当前进程内执行
+    │   → 直接调用函数，结果在当前界面显示
+    │   → 适合轻量操作（如 /help）
+    │
+    └── 方式2：派生子 Agent 执行
+        → 启动一个新的 Agent 去处理
+        → 适合复杂操作（如 /commit 需要多步）
+        → 子 Agent 完成后把结果返回主界面
+</div>
+
+<div class="example">
+方式1 就像你自己去倒杯水——简单快速。<br>
+方式2 就像你让同事去帮你跑腿——你继续做手头的事，同事办完回来告诉你结果。
+</div>
+
+<h2>普通文本路径的核心步骤</h2>
+<div class="diagram">
+processTextPrompt("帮我写个排序函数")
+    │
+    ├── 1. 创建 UserMessage 对象
+    ├── 2. 处理附件（图片、文件选择等）
+    ├── 3. 执行用户配置的 hook
+    ├── 4. 消息加入对话历史
+    └── 5. 通知 QueryEngine 开始处理
+</div>
+
+<div class="note">斜杠命令是"快捷键"，普通文本是"对话"。两种路径最终都可能调用大模型，但斜杠命令有自己预设的流程模板。</div>
+
+<div class="nav">
+<a href="day07.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day09.html">下一天 →</a>
+</div>
+</body>
+</html>

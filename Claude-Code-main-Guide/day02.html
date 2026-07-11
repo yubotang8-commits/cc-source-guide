@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 02 - 源码目录结构一览</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 02 - 源码目录结构一览</h1>
+
+<h2>顶层目录</h2>
+<div class="diagram">
+Claude-Code-main/
+├── src/                  ← 所有源码都在这里
+├── package.json          ← 项目配置、启动命令
+├── tsconfig.json         ← TypeScript 编译配置
+└── docs/                 ← 文档
+</div>
+
+<h2>src/ 下的核心目录</h2>
+<div class="diagram">
+src/
+├── main.tsx              ← 主入口（约2000行）
+├── query.ts              ← 核心查询循环（最大文件）
+├── QueryEngine.ts        ← 查询引擎（给 SDK 用）
+├── tools.ts              ← 工具注册表
+├── Tool.ts               ← 工具类型定义
+├── commands.ts           ← 命令注册表
+├── context.ts            ← 上下文获取
+│
+├── bootstrap/            ← 启动阶段的全局状态
+│   └── state.ts
+│
+├── state/                ← 状态管理系统
+│   ├── store.ts          ← 轻量 createStore 实现
+│   ├── AppState.tsx      ← React 状态组件
+│   └── AppStateStore.ts  ← 状态类型定义
+│
+├── services/             ← 核心服务
+│   ├── api/              ← 大模型 API 调用
+│   ├── compact/          ← 上下文压缩
+│   ├── mcp/              ← MCP 协议管理
+│   └── analytics/        ← 数据统计
+│
+├── tools/                ← 各个工具实现
+│   ├── BashTool/
+│   ├── FileReadTool/
+│   ├── FileWriteTool/
+│   ├── AgentTool/
+│   ├── MCPTool/
+│   └── ...
+│
+├── hooks/                ← React hooks（60+个）
+│
+├── components/           ← UI 组件
+│
+├── screens/              ← 页面
+│   └── REPL.tsx          ← 主界面
+│
+├── commands/             ← 斜杠命令
+│   ├── commit/
+│   ├── config/
+│   └── ...
+│
+├── memdir/               ← 记忆系统
+│   ├── memdir.ts
+│   ├── memoryTypes.ts
+│   └── findRelevantMemories.ts
+│
+├── skills/               ← 技能系统
+│   ├── loadSkillsDir.ts
+│   └── bundled/
+│
+└── utils/                ← 工具函数
+    ├── messages.ts       ← 消息创建/转换
+    └── processUserInput/ ← 输入处理
+</div>
+
+<h2>按功能归类</h2>
+<table>
+<tr><th>功能</th><th>关键文件</th><th>一句话说明</th></tr>
+<tr><td>启动</td><td>main.tsx, bootstrap/state.ts</td><td>程序从这里开始跑</td></tr>
+<tr><td>输入</td><td>utils/processUserInput/</td><td>把你的键盘输入变成程序数据</td></tr>
+<tr><td>查询</td><td>query.ts, QueryEngine.ts</td><td>组织消息、调大模型、处理回复</td></tr>
+<tr><td>提示词</td><td>utils/systemPrompt.ts, context.ts</td><td>拼装给大模型的"说明书"</td></tr>
+<tr><td>消息</td><td>utils/messages.ts, services/compact/</td><td>消息的创建、格式转换、压缩</td></tr>
+<tr><td>工具</td><td>tools/, tools.ts</td><td>读写文件、执行命令等能力</td></tr>
+<tr><td>记忆</td><td>memdir/</td><td>跨会话记住你的偏好</td></tr>
+<tr><td>技能</td><td>skills/</td><td>可扩展的命令/流程模板</td></tr>
+<tr><td>MCP</td><td>services/mcp/</td><td>连接外部工具服务</td></tr>
+<tr><td>状态</td><td>state/, bootstrap/state.ts</td><td>全局共享的数据</td></tr>
+<tr><td>API</td><td>services/api/</td><td>和大模型通信的网络层</td></tr>
+</table>
+
+<div class="note">不用死记硬背。后面的课程会逐个深入，读到这里有个印象就行。</div>
+
+<div class="nav">
+<a href="day01.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day03.html">下一天 →</a>
+</div>
+</body>
+</html>

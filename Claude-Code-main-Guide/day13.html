@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 13 - 记忆系统（中）：记忆的读取与注入提示词</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 13 - 记忆系统（中）：记忆的读取与注入提示词</h1>
+
+<h2>记忆何时被读取</h2>
+<p>每次构建系统提示词时，CC 都会读取记忆并注入。关键函数是 <code>buildMemoryPrompt()</code>。</p>
+
+<div class="diagram">
+构建系统提示词时
+    │
+    ▼
+buildMemoryPrompt()
+    │
+    ├── 1. 检查记忆目录是否存在
+    │       └── 不存在 → 创建（ensureMemoryDirExists）
+    │
+    ├── 2. 读取 MEMORY.md 索引文件
+    │
+    ├── 3. 截断处理（truncateEntrypointContent）
+    │       └── 如果超过200行，只保留前200行
+    │
+    ├── 4. 生成记忆注入提示词
+    │       ├── 自动记忆的指令（告诉大模型何时保存记忆）
+    │       └── MEMORY.md 的内容
+    │
+    └── 5. 返回拼接好的记忆提示词
+    │
+    ▼
+注入到系统提示词中
+</div>
+
+<h2>loadMemoryPrompt() 的调用时机</h2>
+<div class="diagram">
+两个地方会调用：
+
+1. fetchSystemPromptParts()  ← 构建系统提示词时
+   └── 记忆作为系统提示词的一部分
+
+2. 用户执行 /remember 命令时
+   └── 主动查看或编辑记忆
+</div>
+
+<h2>记忆注入的实际效果</h2>
+<div class="example">
+假设 MEMORY.md 内容：
+  - [用户角色](user_role.md) — 数据科学家
+
+注入后，系统提示词中会增加：
+
+<system-reminder>
+你有一个持久的、基于文件的记忆系统……
+MEMORY.md 内容：
+  - [用户角色](user_role.md) — 数据科学家
+</system-reminder>
+
+大模型看到这段，就"知道"了用户的背景。
+</div>
+
+<h2>大模型如何保存记忆</h2>
+<p>大模型不能直接写文件，但它可以通过工具来写。当大模型判断需要保存记忆时：</p>
+<div class="diagram">
+大模型判断需要保存记忆
+    │
+    ▼
+调用 Write 工具
+    │
+    ├── 写入单个记忆文件（如 user_preference.md）
+    └── 更新 MEMORY.md 索引
+    │
+    ▼
+记忆持久化到磁盘
+
+下次对话时，buildMemoryPrompt() 会读到这条记忆
+</div>
+
+<h2>用比喻理解</h2>
+<div class="example">
+记忆系统就像你的笔记本：
+
+MEMORY.md = 笔记本的目录页
+单个 .md 文件 = 笔记本的一页
+
+每次和同事（大模型）开会前：
+1. 翻开目录页，看看之前记了什么
+2. 把相关笔记内容告诉同事
+3. 如果聊到新东西值得记，写在笔记本里
+4. 下次开会再翻笔记本
+
+recallCount = 这页笔记被翻看了多少次
+</div>
+
+<div class="note">记忆的读取是"被动的"——每次构建提示词时自动读取。记忆的写入是"主动的"——大模型决定什么时候该记。</div>
+
+<div class="nav">
+<a href="day12.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day14.html">下一天 →</a>
+</div>
+</body>
+</html>

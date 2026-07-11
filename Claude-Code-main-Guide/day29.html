@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 29 - 微压缩与自动压缩机制</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 29 - 微压缩与自动压缩机制</h1>
+
+<h2>回顾：两种压缩</h2>
+<div class="diagram">
+Day 17 介绍了 compact，今天深入细节：
+
+autoCompact（自动压缩）
+  └── token 接近上限时自动触发
+  └── 调用大模型写摘要替换旧消息
+  └── "大手术"
+
+microCompact（微压缩）
+  └── 对话逐渐变长时渐进触发
+  └── 缓存工具结果，缩短长内容
+  └── "微创手术"
+</div>
+
+<h2>autoCompact 的触发条件</h2>
+<div class="diagram">
+每轮对话后检查 token 用量：
+
+当前 token 数 / 最大 token 数
+    │
+    ├── &lt; 60%  → 不压缩
+    ├── 60%-80% → 考虑微压缩
+    └── &gt; 80%  → 触发自动压缩
+    │
+    ▼
+autoCompact 触发后的决策：
+  ├── 压缩量 = 需要释放多少 token
+  ├── 压缩哪些消息 = 保留最近的，压缩旧的
+  └── 压缩方式 = 调用大模型写摘要
+</div>
+
+<h2>autoCompact 的详细流程</h2>
+<div class="diagram">
+autoCompact():
+
+1. 计算需要释放的 token 数
+   └── targetTokenCount = maxTokens * 0.5
+   └── 需要减少 = currentTokenCount - targetTokenCount
+
+2. 选择要压缩的消息范围
+   └── 保留最近 N 轮对话（不压缩）
+   └── 较早的消息全部标记为"待压缩"
+
+3. 构建压缩提示词
+   └── getCompactPrompt()
+   └── "请总结以下对话的关键信息……"
+
+4. 调用大模型（单独的请求）
+   └── 大模型返回摘要文本
+
+5. 替换消息
+   └── buildPostCompactMessages()
+   └── [SystemMessage: 摘要] + [保留的最近对话]
+
+6. 验证压缩结果
+   └── 计算新 token 数
+   └── 如果还是太长 → 再压缩一轮
+</div>
+
+<h2>microCompact 的策略</h2>
+<div class="diagram">
+microCompact 不调用大模型，而是做轻量处理：
+
+1. 工具结果缓存
+   └── Read 返回 1000 行 → 替换为 "(已缓存: file.js, 1000行)"
+   └── 后续需要时从缓存读取
+
+2. 长文本截断
+   └── 超过一定长度的文本块 → 截断 + 加省略号
+
+3. 重复内容去重
+   └── 同一个文件被读取多次 → 只保留最新一次的完整内容
+
+效果：减少 20-30% token，不需要额外 API 调用
+</div>
+
+<h2>压缩的代价</h2>
+<div class="diagram">
+压缩不是免费的：
+
+autoCompact 代价：
+  ├── 额外 API 调用（花钱）
+  ├── 等待大模型生成摘要（花时间）
+  └── 摘要可能丢失细节（损失信息）
+
+microCompact 代价：
+  ├── 工具结果被简化（后续大模型看不到完整内容）
+  └── 可能影响大模型判断（因为它看不到全部信息了）
+
+所以压缩是"不得已"的选择，
+最好的策略是：对话不要太长。
+</div>
+
+<h2>用户可以手动触发</h2>
+<div class="diagram">
+CC 提供了手动压缩的命令：
+
+/compact        → 立即触发自动压缩
+/compact 微压缩  → 只做微压缩
+
+用户感觉对话"变笨了"时，可以手动压缩。
+</div>
+
+<div class="note">压缩是"续命"机制——让对话能继续下去。代价是丢失细节，所以重要信息要尽早让大模型处理，不要指望它能从压缩后的摘要中找回。</div>
+
+<div class="nav">
+<a href="day28.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day30.html">下一天 →</a>
+</div>
+</body>
+</html>

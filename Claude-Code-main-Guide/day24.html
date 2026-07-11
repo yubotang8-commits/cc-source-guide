@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 24 - MCP 管理（下）：配置与连接生命周期</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 24 - MCP 管理（下）：配置与连接生命周期</h1>
+
+<h2>MCP 配置文件</h2>
+<p>在 settings.json 中配置 MCP 服务器：</p>
+<div class="example">
+{
+  "mcpServers": {
+    "my-database": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": { "DATABASE_URL": "postgresql://..." }
+    },
+    "my-api": {
+      "type": "sse",
+      "url": "https://api.example.com/mcp"
+    }
+  }
+}
+</div>
+
+<h2>配置的读取流程</h2>
+<div class="diagram">
+getAllMcpConfigs()（src/services/mcp/config.ts）
+    │
+    ├── 1. 读取全局配置 (~/.claude/settings.json)
+    ├── 2. 读取项目配置 (.claude/settings.json)
+    ├── 3. 合并配置（项目覆盖全局）
+    │
+    ├── 4. parseMcpConfig() 解析配置
+    │   └── 验证 type、command、url 等字段
+    │
+    └── 5. filterMcpServersByPolicy()
+        └── 根据策略过滤（某些服务器可能被管理员禁用）
+</div>
+
+<h2>连接生命周期</h2>
+<div class="diagram">
+MCPConnectionManager（React 组件）
+    │
+    ▼
+┌─── 启动阶段 ──────────────────────────┐
+│  遍历所有配置的 MCP 服务器               │
+│  对每个服务器：                          │
+│    ├── 创建 McpClient                   │
+│    ├── 调用 connect()                   │
+│    ├── 成功 → listTools() 获取工具列表   │
+│    └── 失败 → 标记为"连接失败"，稍后重试  │
+└────────────────────────────────────────┘
+    │
+    ▼
+┌─── 运行阶段 ──────────────────────────┐
+│  定期健康检查                           │
+│    ├── 连接正常 → 不操作                │
+│    └── 连接断开 → 自动重连              │
+│                                        │
+│  工具调用时                             │
+│    └── 通过 McpClient.callTool()       │
+└────────────────────────────────────────┘
+    │
+    ▼
+┌─── 关闭阶段 ──────────────────────────┐
+│  用户退出 CC 时                         │
+│    └── 对每个 McpClient 调用 disconnect()│
+└────────────────────────────────────────┘
+</div>
+
+<h2>OAuth 认证</h2>
+<p>有些 MCP 服务器需要 OAuth 登录：</p>
+<div class="diagram">
+MCP 服务器需要认证
+    │
+    ▼
+checkAndRefreshOAuthTokenIfNeeded()
+    │
+    ├── token 有效 → 直接使用
+    ├── token 过期 → 自动刷新
+    └── 没有 token → 启动 OAuth 流程
+        ├── 打开浏览器让用户登录
+        ├── 用户授权后回调
+        └── 保存 token 供下次使用
+    │
+    ▼
+如果 API 返回 401（未授权）
+    └── handleOAuth401Error() → 重新走认证流程
+</div>
+
+<h2>连接状态在 UI 中的显示</h2>
+<div class="diagram">
+MCP 连接状态：
+  🟢 已连接（工具可用）
+  🟡 正在连接/重连
+  🔴 连接失败（工具不可用）
+
+用户可以在 CC 中查看：
+  /config mcp → 查看 MCP 服务器状态
+</div>
+
+<div class="note">MCP 管理的关键词：配置驱动、自动重连、OAuth 支持、生命周期管理。让外部服务像"插拔设备"一样方便。</div>
+
+<div class="nav">
+<a href="day23.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day25.html">下一天 →</a>
+</div>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 18 - 全局状态管理（上）：Store 与 bootstrap state</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 18 - 全局状态管理（上）：Store 与 bootstrap state</h1>
+
+<h2>为什么需要全局状态</h2>
+<p>CC 有很多地方需要共享数据：当前用的什么模型、花了多少钱、工具权限设置……这些数据任何组件都可能读写。</p>
+<div class="diagram">
+没有全局状态：
+  组件A 存了自己的模型名
+  组件B 也存了自己的模型名
+  → 用户改了模型，A 改了 B 没改 → 不一致！
+
+有全局状态：
+  全局 Store 存模型名
+  组件A、B 都从 Store 读取
+  → 改 Store 一处，所有组件都更新
+</div>
+
+<h2>createStore：最简实现</h2>
+<p>CC 没用 Redux 那种重型库，而是自己写了一个超轻量的 Store：</p>
+<div class="example">
+createStore(initialState) 返回：
+
+{
+  getState()       → 获取当前状态
+  setState(partial) → 更新部分状态
+  subscribe(fn)    → 订阅状态变化，变化时回调 fn
+}
+
+使用：
+const store = createStore({ model: "sonnet", cost: 0 })
+
+store.getState()          // { model: "sonnet", cost: 0 }
+store.setState({ cost: 5 })
+store.getState()          // { model: "sonnet", cost: 5 }
+
+store.subscribe((newState) => {
+  console.log("状态变了！", newState)
+})
+</div>
+
+<h2>bootstrap state：启动时就确定的状态</h2>
+<p><code>src/bootstrap/state.ts</code> 存的是"程序启动时就需要、整个会话期间不变或很少变"的数据：</p>
+<div class="diagram">
+bootstrap state 包含（200+ 字段，列举关键的）：
+
+┌─────────────────────────────────────┐
+│ originalCwd:  "D:/my-project"       │  ← 启动时的工作目录
+│ projectRoot:  "D:/my-project"       │  ← 项目根目录
+│ sessionId:    "abc-123"             │  ← 会话唯一ID
+│ totalCostUSD: 0.05                  │  ← 累计花费
+│ mainLoopModel: "claude-sonnet"      │  ← 当前使用的模型
+│ isInteractive: true                 │  ← 是否交互模式
+│ toolPermissionContext: {...}         │  ← 工具权限设置
+└─────────────────────────────────────┘
+</div>
+
+<h2>状态变化的传播</h2>
+<div class="diagram">
+某个地方调用 setState({ totalCostUSD: 0.08 })
+    │
+    ▼
+Store 内部更新状态
+    │
+    ▼
+通知所有订阅者（subscribe 注册的回调）
+    │
+    ├── 回调1: 更新 UI 显示的花费
+    ├── 回调2: 记录日志
+    └── 回调3: 触发其他逻辑
+
+这就是"发布-订阅"模式（pub/sub）
+</div>
+
+<h2>用比喻理解</h2>
+<div class="example">
+全局状态 = 公司的公告板
+
+createStore = 公告板的管理员
+getState = 去公告板看写了什么
+setState = 在公告板上贴新通知（覆盖旧的）
+subscribe = 在公告板前装了个"通知铃"，有新通知就响
+
+bootstrap state = 公司成立时就挂上去的牌子：
+"公司名：CC公司""地址：D:/my-project""法人：claude-sonnet"
+</div>
+
+<div class="note">CC 的状态管理哲学：够用就好。没有 Redux 的 action/reducer，就是简单的 get/set/subscribe。</div>
+
+<div class="nav">
+<a href="day17.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day19.html">下一天 →</a>
+</div>
+</body>
+</html>

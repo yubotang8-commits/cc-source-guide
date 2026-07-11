@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 05 - REPL 界面：终端 UI 怎么渲染出来的</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 05 - REPL 界面：终端 UI 怎么渲染出来的</h1>
+
+<h2>REPL 是什么</h2>
+<p>REPL = Read Eval Print Loop（读取-执行-打印-循环）。CC 的主界面就是一个 REPL：你输入 → 它处理 → 它输出 → 等你下一次输入。</p>
+
+<h2>技术选型：Ink</h2>
+<p>CC 用了一个叫 <code>Ink</code> 的库来在终端里渲染 React 组件。你可以把它理解为"终端版的 React"：</p>
+<div class="diagram">
+普通 React：  组件 → 浏览器 DOM → 网页
+Ink：         组件 → 终端输出   → 命令行界面
+</div>
+
+<div class="example">
+普通 React 写一个按钮：
+  &lt;button onClick={...}&gt;点击我&lt;/button&gt;   → 浏览器里显示可点击按钮
+
+Ink 写一段文字：
+  &lt;Text color="green"&gt;你好&lt;/Text&gt;          → 终端里显示绿色"你好"
+</div>
+
+<h2>REPL.tsx 的核心结构</h2>
+<div class="diagram">
+REPL 组件
+├── 顶部状态栏（模型名、项目名等）
+├── 消息列表区域
+│   ├── 用户消息
+│   ├── 助手消息（大模型回复）
+│   ├── 工具调用结果
+│   └── 系统提示
+├── 工具执行区域（正在运行的工具）
+└── 底部输入框
+    └── PromptInput 组件
+</div>
+
+<h2>启动 REPL 的流程</h2>
+<div class="diagram">
+launchRepl()（replLauncher.tsx）
+    │
+    ├── 动态导入 App 组件和 REPL 组件
+    │   （动态导入 = 用到时才加载，加快启动速度）
+    │
+    ▼
+renderAndRun()
+    │
+    ├── Ink 的 render() 函数把 &lt;App /&gt; 渲染到终端
+    │
+    └── App 内部包含 &lt;REPL /&gt;
+</div>
+
+<h2>为什么用动态导入</h2>
+<div class="example">
+假设你要搬家，有两种方式：
+  A. 把所有东西都搬上卡车再出发 → 卡车很重，启动慢
+  B. 先把必需品搬上车出发，其余的后面再运 → 卡车轻，启动快
+
+动态导入就是方式 B：REPL 界面不是启动时立刻需要的，
+所以等到 init() 全部完成后再加载，让用户更早看到"程序已启动"的反馈。
+</div>
+
+<div class="note">REPL 本质上就是一个 React 应用，只是运行在终端而不是浏览器。理解了这一点，后面看各种 hooks 和组件就不会觉得陌生。</div>
+
+<div class="nav">
+<a href="day04.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day06.html">下一天 →</a>
+</div>
+</body>
+</html>

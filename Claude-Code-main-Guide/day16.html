@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 16 - 消息的创建与格式转换</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 16 - 消息的创建与格式转换</h1>
+
+<h2>消息创建函数</h2>
+<p><code>src/utils/messages.ts</code> 提供了消息创建的工具函数：</p>
+
+<div class="diagram">
+createUserMessage(text)
+    │
+    ▼
+{
+  role: "user",
+  content: [{ type: "text", text: "用户说的话" }],
+  timestamp: 1719900000,
+  ...
+}
+
+createAssistantMessage(content)
+    │
+    ▼
+{
+  role: "assistant",
+  content: [文本块, 工具调用块, ...],
+  ...
+}
+
+createSystemMessage(text)
+    │
+    ▼
+{
+  role: "system",
+  content: "系统通知内容",
+  ...
+}
+</div>
+
+<h2>content 的多种形态</h2>
+<p>一条消息的 content 不一定只是文字，可以是多个"块"的组合：</p>
+<div class="example">
+纯文字消息：
+content: [
+  { type: "text", text: "帮我写个函数" }
+]
+
+带图片的消息：
+content: [
+  { type: "text", text: "看看这个截图" },
+  { type: "image", source: { type: "base64", media_type: "image/png", data: "..." } }
+]
+
+带工具调用的回复：
+content: [
+  { type: "text", text: "我来创建这个文件" },
+  { type: "tool_use", id: "tool_001", name: "Write", input: { file_path: "/tmp/a.txt", content: "hello" } }
+]
+
+工具结果的回复：
+content: [
+  { type: "tool_result", tool_use_id: "tool_001", content: "文件已创建" }
+]
+</div>
+
+<h2>格式转换：内部 → API</h2>
+<p><code>normalizeMessagesForAPI()</code> 把 CC 内部格式转成大模型 API 要求的格式：</p>
+<div class="diagram">
+转换规则：
+
+1. 过滤掉 TombstoneMessage（墓碑消息不发给大模型）
+2. SystemMessage 抽出来放到 system 字段
+3. thinking 块保留（大模型思考过程）
+4. tool_use 块按 API 格式排列
+5. 连续的同 role 消息可能需要合并（API 要求 user/assistant 交替）
+</div>
+
+<h2>连续同 role 消息的处理</h2>
+<div class="diagram">
+API 要求消息 user/assistant 交替出现。
+但 CC 内部可能出现连续的 user 消息：
+
+CC 内部：
+  user: "写个函数"
+  user: "用 TypeScript"    ← 连续两条 user
+  assistant: "好的"
+
+转换后：
+  user: "写个函数\n用 TypeScript"  ← 合并成一条
+  assistant: "好的"
+</div>
+
+<div class="example">
+就像写邮件时，你连发了两条短消息给同事：
+  "帮我查一下"
+  "查昨天的数据"
+
+API 只接受一问一答的格式，所以要把你连发的两条合成一条：
+  "帮我查一下\n查昨天的数据"
+</div>
+
+<h2>格式转换：API → 内部</h2>
+<p>大模型返回的结果也需要转换回 CC 内部格式：</p>
+<div class="diagram">
+大模型 API 返回
+    │
+    ▼ normalizeContentFromAPI()
+    │
+CC 内部格式
+    ├── 流式块 → ProgressMessage
+    ├── 文本块 → AssistantMessage 的 content
+    ├── 工具调用 → ToolUseSummaryMessage
+    └── 思考块 → 保留在 AssistantMessage 中
+</div>
+
+<div class="note">消息创建是"造原料"，格式转换是"翻译"。CC 用自己的丰富格式管理消息，发送前翻译成 API 格式，收到后再翻译回来。</div>
+
+<div class="nav">
+<a href="day15.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day17.html">下一天 →</a>
+</div>
+</body>
+</html>

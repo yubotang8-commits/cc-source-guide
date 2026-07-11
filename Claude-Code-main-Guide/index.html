@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>30天学会 Claude Code 源码</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>30天学会 Claude Code 源码</h1>
+<p>本课程带你从零开始，逐步理解 Claude Code（简称 CC）的源码设计。每天一个主题，配合流程图和简单例子，不讲废话。</p>
+
+<h2>课程安排</h2>
+<h3>第一周：整体认知</h3>
+<ol>
+<li><a href="day01.html">Day 01 - CC 是什么 &amp; 整体架构鸟瞰</a></li>
+<li><a href="day02.html">Day 02 - 源码目录结构一览</a></li>
+<li><a href="day03.html">Day 03 - 启动流程（上）：从命令行到入口文件</a></li>
+<li><a href="day04.html">Day 04 - 启动流程（下）：初始化与配置加载</a></li>
+<li><a href="day05.html">Day 05 - REPL 界面：终端 UI 怎么渲染出来的</a></li>
+<li><a href="day06.html">Day 06 - 用户输入捕获：从键盘按键到程序数据</a></li>
+<li><a href="day07.html">Day 07 - 输入处理：processUserInput 完整流程</a></li>
+</ol>
+
+<h3>第二周：消息与提示词</h3>
+<ol start="8">
+<li><a href="day08.html">Day 08 - 斜杠命令 vs 普通文本：两条处理路径</a></li>
+<li><a href="day09.html">Day 09 - 消息队列与 QueryEngine</a></li>
+<li><a href="day10.html">Day 10 - 系统提示词构建（上）：基础模板</a></li>
+<li><a href="day11.html">Day 11 - 系统提示词构建（下）：动态上下文注入</a></li>
+<li><a href="day12.html">Day 12 - 记忆系统（上）：记忆的类型与存储方式</a></li>
+<li><a href="day13.html">Day 13 - 记忆系统（中）：记忆的读取与注入提示词</a></li>
+<li><a href="day14.html">Day 14 - 记忆系统（下）：记忆检索与截断策略</a></li>
+</ol>
+
+<h3>第三周：消息管理与状态</h3>
+<ol start="15">
+<li><a href="day15.html">Day 15 - 消息类型体系：7 种消息长什么样</a></li>
+<li><a href="day16.html">Day 16 - 消息的创建与格式转换</a></li>
+<li><a href="day17.html">Day 17 - 上下文压缩（compact）：聊太长怎么办</a></li>
+<li><a href="day18.html">Day 18 - 全局状态管理（上）：Store 与 bootstrap state</a></li>
+<li><a href="day19.html">Day 19 - 全局状态管理（下）：AppState 与响应式更新</a></li>
+<li><a href="day20.html">Day 20 - 工具系统（上）：工具的定义与注册</a></li>
+<li><a href="day21.html">Day 21 - 工具系统（下）：工具执行与权限控制</a></li>
+</ol>
+
+<h3>第四周：技能、协议与大模型</h3>
+<ol start="22">
+<li><a href="day22.html">Day 22 - 技能系统（Skills）：加载与执行</a></li>
+<li><a href="day23.html">Day 23 - MCP 管理（上）：协议与客户端</a></li>
+<li><a href="day24.html">Day 24 - MCP 管理（下）：配置与连接生命周期</a></li>
+<li><a href="day25.html">Day 25 - 大模型调用（上）：请求组装与发送</a></li>
+<li><a href="day26.html">Day 26 - 大模型调用（中）：流式响应处理</a></li>
+<li><a href="day27.html">Day 27 - 大模型调用（下）：重试与错误处理</a></li>
+<li><a href="day28.html">Day 28 - Harness 设计思路</a></li>
+</ol>
+
+<h3>最后两天：串联全流程</h3>
+<ol start="29">
+<li><a href="day29.html">Day 29 - 微压缩与自动压缩机制</a></li>
+<li><a href="day30.html">Day 30 - 全流程串讲：一条消息的完整旅程</a></li>
+</ol>
+
+<h2>附加内容</h2>
+<ul>
+<li><a href="sequence-diagram.html">CC 核心交互时序图</a></li>
+</ul>
+
+<h2>阅读说明</h2>
+<ul>
+<li>每天内容独立，也可按顺序阅读</li>
+<li>流程图使用纯文本绘制，无需任何插件</li>
+<li>代码片段从源码简化而来，保留核心逻辑</li>
+<li>遇到不懂的术语，先跳过，后面会反复出现自然就懂了</li>
+</ul>
+</body>
+</html>

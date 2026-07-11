@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 12 - 记忆系统（上）：记忆的类型与存储方式</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 12 - 记忆系统（上）：记忆的类型与存储方式</h1>
+
+<h2>为什么需要记忆</h2>
+<p>大模型本身没有"跨对话记忆"——你关掉终端再打开，它不记得你是谁。CC 的记忆系统就是为了弥补这一点。</p>
+<div class="diagram">
+没有记忆：
+  第1次对话: "我是做后端的" → 大模型知道了
+  第2次对话: "帮我写代码" → 大模型忘了你是做后端的
+
+有记忆：
+  第1次对话: "我是做后端的" → CC 存到记忆文件
+  第2次对话: "帮我写代码" → CC 从记忆文件读取 → 提示词里加上"这个用户是做后端的"
+                           → 大模型按后端风格回答
+</div>
+
+<h2>四种记忆类型</h2>
+<table>
+<tr><th>类型</th><th>存什么</th><th>例子</th></tr>
+<tr><td>user</td><td>用户特征、偏好</td><td>"用户是数据科学家，关注日志"</td></tr>
+<tr><td>feedback</td><td>用户的纠正和反馈</td><td>"用户不喜欢结尾加总结"</td></tr>
+<tr><td>project</td><td>项目相关信息</td><td>"合并冻结从3月5日开始"</td></tr>
+<tr><td>reference</td><td>外部资源指针</td><td>"bug 在 Linear 的 INGEST 项目中追踪"</td></tr>
+</table>
+
+<h2>记忆文件在哪里</h2>
+<div class="diagram">
+记忆存储目录：
+
+~/.claude/projects/<项目slug>/memory/
+├── MEMORY.md              ← 索引文件（入口，最多200行）
+├── user_role.md           ← 单条记忆
+├── feedback_style.md      ← 单条记忆
+├── project_release.md     ← 单条记忆
+└── reference_dashboard.md ← 单条记忆
+</div>
+
+<h2>单条记忆的格式</h2>
+<p>每条记忆是一个 Markdown 文件，有 frontmatter 头部：</p>
+<div class="example">
+文件名：feedback_style.md
+
+---
+name: 反馈风格偏好
+description: 用户对回复风格的要求
+type: feedback
+recallCount: 0
+---
+
+用户不喜欢回复末尾加总结段落。
+**Why:** 用户说"我看得懂 diff，不需要总结"
+**How to apply:** 回复时省略尾部总结，直接给出结果
+</div>
+
+<h2>MEMORY.md 索引文件</h2>
+<p>MEMORY.md 不存记忆内容，只存"指针"：</p>
+<div class="example">
+MEMORY.md：
+
+- [用户角色](user_role.md) — 数据科学家，关注日志系统
+- [风格反馈](feedback_style.md) — 不要尾部总结
+- [项目发布](project_release.md) — 3月5日合并冻结
+</div>
+
+<div class="note">记忆 = 文件系统上的 Markdown 文件。简单、可读、可手动编辑。MEMORY.md 是目录，每个 .md 文件是一条记忆。</div>
+
+<div class="nav">
+<a href="day11.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day13.html">下一天 →</a>
+</div>
+</body>
+</html>

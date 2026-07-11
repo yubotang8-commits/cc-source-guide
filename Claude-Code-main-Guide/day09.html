@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 09 - 消息队列与 QueryEngine</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 09 - 消息队列与 QueryEngine</h1>
+
+<h2>为什么需要消息队列</h2>
+<p>你可能快速连续输入多条消息，但大模型一次只能处理一个请求。所以需要一个"队列"来排队。</p>
+<div class="diagram">
+用户快速输入3条消息：
+  "你好" → "写个函数" → "解释这段代码"
+
+消息队列（先到先排）：
+  ┌───────────┐
+  │  "你好"    │ ← 排第1，正在处理
+  ├───────────┤
+  │  "写个函数" │ ← 排第2，等待中
+  ├───────────┤
+  │ "解释这段代码"│ ← 排第3，等待中
+  └───────────┘
+
+QueryEngine 每次从队列取一条处理
+</div>
+
+<h2>QueryEngine 是什么</h2>
+<p>QueryEngine 是 CC 的"调度中心"。它负责：</p>
+<div class="diagram">
+QueryEngine（src/QueryEngine.ts）
+    │
+    ├── 接收用户消息
+    ├── 构建系统提示词
+    ├── 拼装完整消息列表（系统提示词 + 历史 + 当前消息）
+    ├── 调用 query() 函数（核心循环）
+    ├── 处理流式响应
+    ├── 执行工具调用
+    └── 返回最终结果
+</div>
+
+<h2>QueryEngine 的核心方法</h2>
+<div class="example">
+submitMessage(prompt) {
+  // 1. 构建系统提示词
+  systemPrompt = fetchSystemPromptParts(...)
+
+  // 2. 调用核心查询循环
+  for await (message of query(messages, systemPrompt, tools)) {
+    // 3. 逐条返回流式消息
+    yield message
+  }
+}
+</div>
+
+<h2>query() 函数：核心循环</h2>
+<p><code>query()</code> 在 query.ts 中，是整个 CC 最核心也最长的文件。它的工作：</p>
+<div class="diagram">
+query() 核心循环
+    │
+    ▼
+┌─→ 调用大模型 API（流式）
+│   │
+│   ▼
+│   大模型回复
+│   ├── 返回文字 → 显示给用户
+│   ├── 要求调用工具 → 执行工具 → 结果加入消息 → 回到 ↑
+│   └── 表示说完了 → 循环结束
+│
+└── 退出循环，返回最终结果
+</div>
+
+<h2>用餐厅比喻</h2>
+<div class="diagram">
+消息队列 = 排队取号机
+  → 客人来了一人一号，按顺序来
+
+QueryEngine = 餐厅经理
+  → 看当前订单、准备食材（系统提示词）
+  → 把订单交给后厨（大模型 API）
+  → 后厨说"我要一个锅"（工具调用）
+    → 经理拿锅（执行工具）
+    → 把锅给后厨继续做
+  → 后厨说"菜做好了"（end_turn）
+    → 经理把菜端给客人
+
+query() = 做一道菜的完整过程
+  → 可能要多次跟后厨来回沟通
+</div>
+
+<div class="note">QueryEngine 是调度者，query() 是执行者。一个管"谁先谁后"，一个管"怎么做完一件事"。</div>
+
+<div class="nav">
+<a href="day08.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day10.html">下一天 →</a>
+</div>
+</body>
+</html>

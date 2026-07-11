@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 07 - 输入处理：processUserInput 完整流程</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 07 - 输入处理：processUserInput 完整流程</h1>
+
+<h2>processUserInput 是什么</h2>
+<p>昨天我们知道键盘输入变成了字符串。今天看这个字符串怎么变成大模型能理解的"消息"。<code>processUserInput()</code> 就是这个转换器。</p>
+
+<h2>完整流程图</h2>
+<div class="diagram">
+processUserInput(input, mode, ...)
+    │
+    ├── 输入是斜杠命令？(以 "/" 开头)
+    │   ├── 是 → processSlashCommand()
+    │   │         ├── 查找命令注册表
+    │   │         ├── 找到 → 执行命令
+    │   │         └── 没找到 → 提示"未知命令"
+    │   │
+    │   └── 否 → processTextPrompt()
+    │             ├── 处理粘贴内容（文本/图片）
+    │             ├── 处理 IDE 附件
+    │             ├── 创建 UserMessage
+    │             └── 通过 hook 系统检查
+    │
+    ▼
+输出：一个 UserMessage 对象
+    │
+    ▼
+进入消息队列 → 等待 QueryEngine 处理
+</div>
+
+<h2>UserMessage 长什么样</h2>
+<div class="example">
+用户输入："帮我写个排序函数"
+
+转换成 UserMessage：
+{
+  role: "user",
+  content: [
+    {
+      type: "text",
+      text: "帮我写个排序函数"
+    }
+  ]
+}
+
+如果还粘贴了一张图片：
+{
+  role: "user",
+  content: [
+    { type: "text", text: "看看这个截图" },
+    { type: "image", source: { type: "base64", data: "..." } }
+  ]
+}
+</div>
+
+<h2>用生活例子理解</h2>
+<div class="diagram">
+你去医院看病：
+
+挂号台（processUserInput）
+    │
+    ├── 你说"我要体检"（斜杠命令 /checkup）
+    │   → 直接走体检流程，不用见医生
+    │
+    └── 你说"我肚子疼"（普通文本）
+        → 生成病历单（UserMessage）
+        → 排队等医生（消息队列）
+        → 医生诊断（QueryEngine → 大模型）
+</div>
+
+<h2>hook 系统是什么</h2>
+<p>用户可以配置"钩子"（hook）——在消息发出前自动执行一段脚本。比如：提交前自动格式化代码。</p>
+<div class="diagram">
+UserMessage 创建后
+    │
+    ▼
+检查有没有配置 hook
+    │
+    ├── 有 → 执行 hook 脚本
+    │   ├── hook 通过 → 消息继续
+    │   └── hook 拦截 → 消息被阻止，提示用户
+    │
+    └── 没有 → 消息直接继续
+</div>
+
+<div class="note">processUserInput 就是"分拣站"：斜杠命令走快速通道，普通文本打包成 UserMessage 走正式流程。</div>
+
+<div class="nav">
+<a href="day06.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day08.html">下一天 →</a>
+</div>
+</body>
+</html>

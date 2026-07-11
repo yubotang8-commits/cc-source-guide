@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 03 - 启动流程（上）：从命令行到入口文件</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 03 - 启动流程（上）：从命令行到入口文件</h1>
+
+<h2>从一条命令说起</h2>
+<p>当你在终端输入 <code>bun run dev</code>，发生了什么？</p>
+
+<div class="diagram">
+终端输入: bun run dev
+    │
+    ▼
+package.json 中的 scripts.dev:
+  "dev": "bun run ./src/dev-entry.ts"
+    │
+    ▼
+执行 src/dev-entry.ts
+    │
+    ├── 检查 --version / --help 参数
+    ├── 扫描是否有缺失的相对引用
+    │
+    ▼
+如果没问题 → 导入 './entrypoints/cli.tsx'
+    │
+    ▼
+cli.tsx → 导入 src/main.tsx
+</div>
+
+<h2>main.tsx 的第一步</h2>
+<p>main.tsx 是整个程序的"大门"，它最先做的几件事：</p>
+<div class="diagram">
+main.tsx 开头（约第1-20行）
+    │
+    ├── profileCheckpoint('main_tsx_entry')   ← 记录启动时间点
+    ├── startMdmRawRead()                     ← 提前启动后台子进程
+    └── startKeychainPrefetch()               ← 提前读取密钥信息
+    │
+    ▼
+调用 init() 函数（来自 entrypoints/init.ts）
+</div>
+
+<div class="note">这三个操作（profileCheckpoint、startMdmRawRead、startKeychainPrefetch）叫"预取"——在用户还没操作之前，先做一些耗时准备，让后续操作更快。</div>
+
+<h2>用餐厅比喻理解启动</h2>
+<div class="diagram">
+餐厅开门前的准备：
+  ├── 厨师到岗          ← profileCheckpoint（打卡记录时间）
+  ├── 提前把冰箱插上电   ← startMdmRawRead（后台准备）
+  └── 提前备好零钱       ← startKeychainPrefetch（预读取密钥）
+</div>
+
+<h2>package.json 中的关键命令</h2>
+<table>
+<tr><th>命令</th><th>作用</th></tr>
+<tr><td><code>bun run dev</code></td><td>开发模式启动（入口：dev-entry.ts）</td></tr>
+<tr><td><code>bun run start</code></td><td>同 dev 的别名</td></tr>
+<tr><td><code>bun run version</code></td><td>只输出版本号，用于快速验证能否启动</td></tr>
+</table>
+
+<div class="example">
+假设你想确认代码改完后还能不能跑起来，不用等整个程序启动完：<br>
+<code>bun run version</code> → 只走启动流程的"前几步"，输出版本号就退出。<br>
+这就像餐厅开门前，先试试灯能不能亮，不用把所有菜都做一遍。
+</div>
+
+<div class="nav">
+<a href="day02.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day04.html">下一天 →</a>
+</div>
+</body>
+</html>
