@@ -418,17 +418,15 @@ def main():
         chunks = info["chunks"]
         encoding = info["encoding"]
         print(f"Reconstructing: {original_path}")
-
-        # Read and concatenate chunks
         if encoding == "utf-8":
             content = ""
             for chunk_path in chunks:
                 with open(chunk_path, "r", encoding="utf-8") as f:
                     content += f.read()
             os.makedirs(os.path.dirname(original_path), exist_ok=True)
-            with open(original_path, "w", encoding="utf-8") as f:
+            with open(original_path, "w", encoding="utf-8", newline="") as f:
                 f.write(content)
-        else:  # binary/base64
+        else:
             b64_content = ""
             for chunk_path in chunks:
                 with open(chunk_path, "r", encoding="utf-8") as f:
@@ -437,14 +435,11 @@ def main():
             os.makedirs(os.path.dirname(original_path), exist_ok=True)
             with open(original_path, "wb") as f:
                 f.write(raw)
-
-        # Remove chunk files
         for chunk_path in chunks:
             if os.path.exists(chunk_path):
                 os.unlink(chunk_path)
         restored += 1
         print(f"  OK (removed {len(chunks)} chunks)")
-
     print(f"
 All {restored} files reconstructed!")
 
