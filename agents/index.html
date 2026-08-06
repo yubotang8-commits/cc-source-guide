@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AI Coding Agent 架构对比索引</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: #fafafa; color: #1a1a1a; line-height: 1.7; max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.8rem; border-bottom: 3px solid #333; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+  h2 { font-size: 1.2rem; margin: 2rem 0 0.8rem; color: #374151; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.2rem 1.5rem; margin: 0.8rem 0; transition: box-shadow 0.2s; }
+  .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .card h3 { font-size: 1.05rem; margin-bottom: 0.3rem; }
+  .card p { color: #6b7280; font-size: 0.9rem; }
+  .card a { color: #2563eb; text-decoration: none; }
+  .card a:hover { text-decoration: underline; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.78rem; font-weight: 600; }
+  .cc { background: #fffbeb; color: #92400e; } .cx { background: #ecfdf5; color: #065f46; } .ox { background: #f5f3ff; color: #5b21b6; }
+  .new { background: #fef2f2; color: #991b1b; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; margin: 1rem 0; }
+  .grid .card { margin: 0; }
+  .tag { color: #9ca3af; font-size: 0.82rem; }
+</style>
+</head>
+<body>
+
+<h1>AI Coding Agent 架构对比</h1>
+<p style="color:#6b7280;margin-bottom:1.5rem;">Claude Code (CC) / Codex (CX) / OpenCode (OX) 三个 AI 编码代理的架构深度对比</p>
+
+<h2>单 Agent 报告</h2>
+<div class="grid">
+  <div class="card">
+    <h3><a href="report/report-cc.html">Claude Code (CC)</a></h3>
+    <p>TypeScript / React | JSONL 持久化 | YOLO Classifier | StreamingToolExecutor</p>
+    <span class="badge cc">CC</span> <span class="tag">1,903 文件</span>
+  </div>
+  <div class="card">
+    <h3><a href="report/report-cx.html">Codex (CX)</a></h3>
+    <p>Rust 43 crates | Guardian AI 审查 | 3平台沙箱 | 两阶段记忆管线</p>
+    <span class="badge cx">CX</span> <span class="tag">1,015 文件</span>
+  </div>
+  <div class="card">
+    <h3><a href="report/report-ox.html">OpenCode (OX)</a></h3>
+    <p>TypeScript / Effect-TS | SQLite 事件溯源 | SystemContext 代数 | Steer/Queue</p>
+    <span class="badge ox">OX</span> <span class="tag">6,422 文件</span>
+  </div>
+</div>
+
+<h2>跨 Agent 维度对比</h2>
+
+<div class="card">
+  <h3><a href="comparison/context-management/index.html">1. 上下文管理（会话管理与持久化）</a></h3>
+  <p>CC=JSONL | CX=ThreadStore trait | OX=SQLite+事件溯源 | Compaction 三级 vs 单级 vs 按需</p>
+</div>
+
+<div class="card">
+  <h3><a href="comparison/memory/index.html">2. 记忆机制</a></h3>
+  <p>CC=CLAUDE.md 4层+自动提取 | CX=2阶段AI管线(Phase1→Phase2) | OX=配置驱动(无专门记忆)</p>
+</div>
+
+<div class="card">
+  <h3><a href="comparison/agent-loop/index.html">3. Agent Loop（正常退出与异常退出）</a></h3>
+  <p>共同模式: while+流式+工具并行 | CC=async generator | CX=loop+tokio | OX=Effect双层while | 6种退出条件对比</p>
+</div>
+
+<div class="card">
+  <h3><a href="comparison/prompt-management/index.html">4. 提示词管理</a></h3>
+  <p>CC=Section缓存架构 | CX=编译时嵌入(include_str!) | OX=Source代数组合+增量更新</p>
+</div>
+
+<div class="card">
+  <h3><a href="comparison/state-management/index.html">5. 状态管理</a></h3>
+  <p>CC=双层全局(Bootstrap+React) | CX=4库SQLite+Mutex | OX=分布式Effect Service</p>
+</div>
+
+<div class="card">
+  <h3><a href="comparison/security/index.html">6. 安全机制</a></h3>
+  <p>安全成熟度: CX(沙箱+Guardian+Hook) &gt; CC(Classifier+沙箱) &gt;&gt; OX(路径隔离+三值权限)</p>
+</div>
+
+<div class="card">
+  <h3><a href="comparison/tool-usage/index.html">7. 工具使用 (Skill, MCP, 内置命令)</a></h3>
+  <p>CC=13+内置+MCP+Skill+Plugin | CX=Handler+ToolOrchestrator | OX=双层注册+Effect Schema</p>
+</div>
+
+<div class="card">
+  <h3><a href="comparison/planning/index.html">8. 规划 / 推理策略</a> <span class="badge new">NEW</span></h3>
+  <p>CC=显式Plan-Execute(Plan Mode+子代理) | CX=ModeKind+update_plan+CodeMode | OX=Plan Agent(权限deny隔离)</p>
+</div>
+
+<div class="card">
+  <h3><a href="comparison/orchestration/index.html">9. 编排 / 子代理</a> <span class="badge new">NEW</span></h3>
+  <p>CC=AgentTool+Team/Swarm(文件IPC) | CX=spawn_agent V1/V2( Fork+加密通信) | OX=task工具(子Session)</p>
+</div>
+
+<h2>关键术语映射</h2>
+<table style="width:100%;border-collapse:collapse;font-size:0.88rem;margin:0.5rem 0;">
+  <tr style="background:#f5f5f4;"><th style="padding:6px;border:1px solid #e0e0e0;">概念</th><th style="padding:6px;border:1px solid #e0e0e0;">CC</th><th style="padding:6px;border:1px solid #e0e0e0;">CX</th><th style="padding:6px;border:1px solid #e0e0e0;">OX</th></tr>
+  <tr><td style="padding:6px;border:1px solid #e0e0e0;">一次对话</td><td style="padding:6px;border:1px solid #e0e0e0;">Session</td><td style="padding:6px;border:1px solid #e0e0e0;">Thread</td><td style="padding:6px;border:1px solid #e0e0e0;">Session</td></tr>
+  <tr><td style="padding:6px;border:1px solid #e0e0e0;">对话历史</td><td style="padding:6px;border:1px solid #e0e0e0;">Transcript</td><td style="padding:6px;border:1px solid #e0e0e0;">Rollout</td><td style="padding:6px;border:1px solid #e0e0e0;">History</td></tr>
+  <tr><td style="padding:6px;border:1px solid #e0e0e0;">一轮循环</td><td style="padding:6px;border:1px solid #e0e0e0;">Turn</td><td style="padding:6px;border:1px solid #e0e0e0;">Turn</td><td style="padding:6px;border:1px solid #e0e0e0;">Step</td></tr>
+  <tr><td style="padding:6px;border:1px solid #e0e0e0;">上下文压缩</td><td style="padding:6px;border:1px solid #e0e0e0;">Compact</td><td style="padding:6px;border:1px solid #e0e0e0;">Auto-Compact</td><td style="padding:6px;border:1px solid #e0e0e0;">Compaction</td></tr>
+  <tr><td style="padding:6px;border:1px solid #e0e0e0;">安全审查</td><td style="padding:6px;border:1px solid #e0e0e0;">YOLO Classifier</td><td style="padding:6px;border:1px solid #e0e0e0;">Guardian</td><td style="padding:6px;border:1px solid #e0e0e0;">PermissionV2</td></tr>
+  <tr><td style="padding:6px;border:1px solid #e0e0e0;">子代理</td><td style="padding:6px;border:1px solid #e0e0e0;">AgentTool runAgent()</td><td style="padding:6px;border:1px solid #e0e0e0;">spawn_agent</td><td style="padding:6px;border:1px solid #e0e0e0;">task tool</td></tr>
+</table>
+
+</body>
+</html>

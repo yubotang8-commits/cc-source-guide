@@ -1,0 +1,4 @@
+[   20384ms] [WARNING] [DOM] Found 3 elements with non-unique id #allow_signup: (More info: https://goo.gl/9p2vKq) %o %o %o @ https://github.com/login:0
+[   20384ms] [WARNING] [DOM] Found 3 elements with non-unique id #client_id: (More info: https://goo.gl/9p2vKq) %o %o %o @ https://github.com/login:0
+[   20384ms] [WARNING] [DOM] Found 3 elements with non-unique id #integration: (More info: https://goo.gl/9p2vKq) %o %o %o @ https://github.com/login:0
+[   20384ms] [WARNING] [DOM] Found 3 elements with non-unique id #return_to: (More info: https://goo.gl/9p2vKq) %o %o %o @ https://github.com/login:0
