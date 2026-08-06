@@ -1,0 +1,1726 @@
+th": "scripts/mcp_conformance/run_codex_compliance.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bfb31cc6c5ca85f45622cad896e5639c6273b85d",
+      "size": 78078,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/bfb31cc6c5ca85f45622cad896e5639c6273b85d"
+    },
+    {
+      "path": "scripts/mcp_conformance/server.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "294fcb4c480fa4de9e8f7e6a192a4fd3d69c5e58",
+      "size": 62240,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/294fcb4c480fa4de9e8f7e6a192a4fd3d69c5e58"
+    },
+    {
+      "path": "scripts/mcp_conformance/test_codex_compliance.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e97374d515e9a6e873acbb20c7d7742acd07d9ac",
+      "size": 36825,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/e97374d515e9a6e873acbb20c7d7742acd07d9ac"
+    },
+    {
+      "path": "scripts/mcp_conformance/test_official_conformance.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "be8a9650abd9c8dffa4d04f4dea686298df1e36c",
+      "size": 21617,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/be8a9650abd9c8dffa4d04f4dea686298df1e36c"
+    },
+    {
+      "path": "scripts/mcp_conformance/test_review_regressions.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "609769a3e5ceef3f5564e90c91f803267287d6c9",
+      "size": 35773,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/609769a3e5ceef3f5564e90c91f803267287d6c9"
+    },
+    {
+      "path": "scripts/mcp_conformance/test_server.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0828ff8db728764ceb4e2f8c62bd3cfb93fe2c73",
+      "size": 50689,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/0828ff8db728764ceb4e2f8c62bd3cfb93fe2c73"
+    },
+    {
+      "path": "scripts/mock_responses_websocket_server.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6d41df8a4ab630fd80b5c61e55f19b2b24f00ccb",
+      "size": 5993,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/6d41df8a4ab630fd80b5c61e55f19b2b24f00ccb"
+    },
+    {
+      "path": "scripts/pyproject.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4340b6b78e83971e0032a7c90852f02791d3acbf",
+      "size": 177,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/4340b6b78e83971e0032a7c90852f02791d3acbf"
+    },
+    {
+      "path": "scripts/readme_toc.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "f37a69d7c714cd1bd8e4abb8695ca6ddb402ad8c",
+      "size": 3878,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/f37a69d7c714cd1bd8e4abb8695ca6ddb402ad8c"
+    },
+    {
+      "path": "scripts/run_tui_with_exec_server.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "db926fc74b65d86875eaffb00ad7c607b0e533e2",
+      "size": 1768,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/db926fc74b65d86875eaffb00ad7c607b0e533e2"
+    },
+    {
+      "path": "scripts/stage_npm_packages.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "1ce9b22d01dfd044f8f20a7ebff2c9207ce8eb1d",
+      "size": 19285,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/1ce9b22d01dfd044f8f20a7ebff2c9207ce8eb1d"
+    },
+    {
+      "path": "scripts/start-codex-exec.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "8835d4c09514d69cb389b1c9749a7bc7056d4e15",
+      "size": 4919,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/8835d4c09514d69cb389b1c9749a7bc7056d4e15"
+    },
+    {
+      "path": "scripts/test-remote-env.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "7fcdd1ca37b53cb3bf275ed967f569f8ddffb124",
+      "size": 4916,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/7fcdd1ca37b53cb3bf275ed967f569f8ddffb124"
+    },
+    {
+      "path": "scripts/uv.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6c0c3bd0810badf5f901317b61d642d1dc84e026",
+      "size": 6220,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/6c0c3bd0810badf5f901317b61d642d1dc84e026"
+    },
+    {
+      "path": "sdk",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "eba05025e01850c9e4d6ee5989053d2a83d0ac6e",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/eba05025e01850c9e4d6ee5989053d2a83d0ac6e"
+    },
+    {
+      "path": "sdk/python-runtime",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9b173fc32b1954aaed0bc6b8bcaf1a3c0b4e3730",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/9b173fc32b1954aaed0bc6b8bcaf1a3c0b4e3730"
+    },
+    {
+      "path": "sdk/python-runtime/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "12c94109da2558ff02b238443cb0d996dab15ac9",
+      "size": 351,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/12c94109da2558ff02b238443cb0d996dab15ac9"
+    },
+    {
+      "path": "sdk/python-runtime/hatch_build.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d49e3e106aaa383d7cb8b3e7f0601a4d2a897f0f",
+      "size": 932,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/d49e3e106aaa383d7cb8b3e7f0601a4d2a897f0f"
+    },
+    {
+      "path": "sdk/python-runtime/pyproject.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "18967bab51e7e6557f26b820fd043f68c0de5ae9",
+      "size": 1400,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/18967bab51e7e6557f26b820fd043f68c0de5ae9"
+    },
+    {
+      "path": "sdk/python-runtime/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2922c352e51dd65b0700e257c795db2bac04223c",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/2922c352e51dd65b0700e257c795db2bac04223c"
+    },
+    {
+      "path": "sdk/python-runtime/src/codex_cli_bin",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "65d388b8857aff1c531c995a5c1092029d3fa1eb",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/65d388b8857aff1c531c995a5c1092029d3fa1eb"
+    },
+    {
+      "path": "sdk/python-runtime/src/codex_cli_bin/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4c563de8bb466f5583a7cd95fce787c9edcb522c",
+      "size": 1005,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/4c563de8bb466f5583a7cd95fce787c9edcb522c"
+    },
+    {
+      "path": "sdk/python-runtime/uv.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2487eacdef10082dc8e616353666840f0451d6df",
+      "size": 233,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/2487eacdef10082dc8e616353666840f0451d6df"
+    },
+    {
+      "path": "sdk/python",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1eb9cd6dbfe6bd92ae028052baa240dd590a946a",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/1eb9cd6dbfe6bd92ae028052baa240dd590a946a"
+    },
+    {
+      "path": "sdk/python/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5fbb145c70a8cac177e4a4fb31126d7899d113e1",
+      "size": 1786,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/5fbb145c70a8cac177e4a4fb31126d7899d113e1"
+    },
+    {
+      "path": "sdk/python/_runtime_setup.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e3988fb79503f6e846b43208fc7434f4dd14099e",
+      "size": 12129,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/e3988fb79503f6e846b43208fc7434f4dd14099e"
+    },
+    {
+      "path": "sdk/python/docs",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "395764c0875188a4e490fcde9578333b8f2e36bc",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/395764c0875188a4e490fcde9578333b8f2e36bc"
+    },
+    {
+      "path": "sdk/python/docs/api-reference.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fbf1abb49c3dd2b235618c28a7cc5c4e469f7502",
+      "size": 10360,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/fbf1abb49c3dd2b235618c28a7cc5c4e469f7502"
+    },
+    {
+      "path": "sdk/python/docs/faq.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c21624a283f8279e0b74f39eb4dee94c68f54fb1",
+      "size": 4430,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/c21624a283f8279e0b74f39eb4dee94c68f54fb1"
+    },
+    {
+      "path": "sdk/python/docs/getting-started.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "af7b71026f014385343cd8744970fbc5e885a510",
+      "size": 3978,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/af7b71026f014385343cd8744970fbc5e885a510"
+    },
+    {
+      "path": "sdk/python/examples",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5ca0bfcd3c3768f4b7b1bead4a81739f9f2dc1ff",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/5ca0bfcd3c3768f4b7b1bead4a81739f9f2dc1ff"
+    },
+    {
+      "path": "sdk/python/examples/01_quickstart_constructor",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "db4563f4f66360706a51f2c9fcf639b0325ae012",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/db4563f4f66360706a51f2c9fcf639b0325ae012"
+    },
+    {
+      "path": "sdk/python/examples/01_quickstart_constructor/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9a5a48e8e5f6f23d5116bcbfc82d87dc65bd7fc5",
+      "size": 818,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/9a5a48e8e5f6f23d5116bcbfc82d87dc65bd7fc5"
+    },
+    {
+      "path": "sdk/python/examples/01_quickstart_constructor/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3c406946cf01ecf0212746c2c37626b54e4401fd",
+      "size": 648,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/3c406946cf01ecf0212746c2c37626b54e4401fd"
+    },
+    {
+      "path": "sdk/python/examples/02_turn_run",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9fc2aab20d7bc0ba5c0f6ce7cb0f0762692b3609",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/9fc2aab20d7bc0ba5c0f6ce7cb0f0762692b3609"
+    },
+    {
+      "path": "sdk/python/examples/02_turn_run/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c4071cde47ea56fe23e4ecb9cafb5e2044992a1e",
+      "size": 966,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/c4071cde47ea56fe23e4ecb9cafb5e2044992a1e"
+    },
+    {
+      "path": "sdk/python/examples/02_turn_run/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "af22a220ba0fabcc2fe1421860eee5f455542e03",
+      "size": 754,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/af22a220ba0fabcc2fe1421860eee5f455542e03"
+    },
+    {
+      "path": "sdk/python/examples/03_turn_stream_events",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "769e7e9e2ec0c18c55248e2bb27dc81afb9b3b8e",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/769e7e9e2ec0c18c55248e2bb27dc81afb9b3b8e"
+    },
+    {
+      "path": "sdk/python/examples/03_turn_stream_events/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e145b2222bf47e1a0596183bb3eab3684358f0cf",
+      "size": 2106,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/e145b2222bf47e1a0596183bb3eab3684358f0cf"
+    },
+    {
+      "path": "sdk/python/examples/03_turn_stream_events/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f5a734dc384563d0c5789f1a5b8bbf2c64ac3315",
+      "size": 1798,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/f5a734dc384563d0c5789f1a5b8bbf2c64ac3315"
+    },
+    {
+      "path": "sdk/python/examples/04_models_and_metadata",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "96205f5130e5cfd67de8b55d313acb35a2a01598",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/96205f5130e5cfd67de8b55d313acb35a2a01598"
+    },
+    {
+      "path": "sdk/python/examples/04_models_and_metadata/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "23ca58131fb1b3eef0caf8773053ce321d89ecda",
+      "size": 685,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/23ca58131fb1b3eef0caf8773053ce321d89ecda"
+    },
+    {
+      "path": "sdk/python/examples/04_models_and_metadata/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "155e53571d4962c09a5cb4664da10bd11613d1c5",
+      "size": 547,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/155e53571d4962c09a5cb4664da10bd11613d1c5"
+    },
+    {
+      "path": "sdk/python/examples/05_existing_thread",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0657081f68ffb6081b95ac10624785dc3c1c241d",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/0657081f68ffb6081b95ac10624785dc3c1c241d"
+    },
+    {
+      "path": "sdk/python/examples/05_existing_thread/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e1f4db71054ec610dc5ffcc51ef4e29f06f4e95a",
+      "size": 946,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/e1f4db71054ec610dc5ffcc51ef4e29f06f4e95a"
+    },
+    {
+      "path": "sdk/python/examples/05_existing_thread/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7110ebac7fddf54049082a1e1d2a392eaaeffc82",
+      "size": 801,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/7110ebac7fddf54049082a1e1d2a392eaaeffc82"
+    },
+    {
+      "path": "sdk/python/examples/06_thread_lifecycle_and_controls",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a2296f8f9e1bbe8b78a1f501f107577fb31f401e",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/a2296f8f9e1bbe8b78a1f501f107577fb31f401e"
+    },
+    {
+      "path": "sdk/python/examples/06_thread_lifecycle_and_controls/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7a786a1d798bd5d40202d0806088887aba52b1ca",
+      "size": 2241,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/7a786a1d798bd5d40202d0806088887aba52b1ca"
+    },
+    {
+      "path": "sdk/python/examples/06_thread_lifecycle_and_controls/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "744b56ebb7cfe57893e6e1f68d0074e69273efa0",
+      "size": 1847,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/744b56ebb7cfe57893e6e1f68d0074e69273efa0"
+    },
+    {
+      "path": "sdk/python/examples/07_image_and_text",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ab8024c1c4e4a97e3aa771e92ba58f5d89ed19b8",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/ab8024c1c4e4a97e3aa771e92ba58f5d89ed19b8"
+    },
+    {
+      "path": "sdk/python/examples/07_image_and_text/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8673e455a3079d70fbcd00325fd7fd62ebbe64dd",
+      "size": 983,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/8673e455a3079d70fbcd00325fd7fd62ebbe64dd"
+    },
+    {
+      "path": "sdk/python/examples/07_image_and_text/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1b20f8462d2864f946fe156068259137e13079bd",
+      "size": 771,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/1b20f8462d2864f946fe156068259137e13079bd"
+    },
+    {
+      "path": "sdk/python/examples/08_local_image_and_text",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3ea27c46cd9290ce5ced2097aae9af156a55bb28",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/3ea27c46cd9290ce5ced2097aae9af156a55bb28"
+    },
+    {
+      "path": "sdk/python/examples/08_local_image_and_text/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "292c0c3e3d41957299a34461e56cd16454d7d35b",
+      "size": 1157,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/292c0c3e3d41957299a34461e56cd16454d7d35b"
+    },
+    {
+      "path": "sdk/python/examples/08_local_image_and_text/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ee80a181ffa1a19c00cc227b74d12ded4456cf67",
+      "size": 921,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/ee80a181ffa1a19c00cc227b74d12ded4456cf67"
+    },
+    {
+      "path": "sdk/python/examples/09_async_parity",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f46dde5a6bcb271693eb00391449d1ff33353581",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/f46dde5a6bcb271693eb00391449d1ff33353581"
+    },
+    {
+      "path": "sdk/python/examples/09_async_parity/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7ac8abbd71caba4bea7eb26d964aa231b97354f",
+      "size": 686,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/a7ac8abbd71caba4bea7eb26d964aa231b97354f"
+    },
+    {
+      "path": "sdk/python/examples/10_error_handling_and_retry",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "90b22637ae6c41429869f3984f368f827a84876b",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/90b22637ae6c41429869f3984f368f827a84876b"
+    },
+    {
+      "path": "sdk/python/examples/10_error_handling_and_retry/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "71f954544f14f20f56a3dd6db752ffa65c807f82",
+      "size": 2454,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/71f954544f14f20f56a3dd6db752ffa65c807f82"
+    },
+    {
+      "path": "sdk/python/examples/10_error_handling_and_retry/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9c0f9f30e5527e40550d160d001a30aa43f7792d",
+      "size": 1135,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/9c0f9f30e5527e40550d160d001a30aa43f7792d"
+    },
+    {
+      "path": "sdk/python/examples/11_cli_mini_app",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3c9f59e61539ea6c5a0b4aa0707b303813340f2a",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/3c9f59e61539ea6c5a0b4aa0707b303813340f2a"
+    },
+    {
+      "path": "sdk/python/examples/11_cli_mini_app/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e2a695a924c67acd0808899d4dc6ae79da947a22",
+      "size": 2819,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/e2a695a924c67acd0808899d4dc6ae79da947a22"
+    },
+    {
+      "path": "sdk/python/examples/11_cli_mini_app/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0bf906647c73769155f1bc965af6ea38d708bfaf",
+      "size": 2471,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/0bf906647c73769155f1bc965af6ea38d708bfaf"
+    },
+    {
+      "path": "sdk/python/examples/12_turn_params_kitchen_sink",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6f39aeb27ed13abe40491e133040cd413046efc8",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/6f39aeb27ed13abe40491e133040cd413046efc8"
+    },
+    {
+      "path": "sdk/python/examples/12_turn_params_kitchen_sink/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f44ea229b019eeaa56520f887859596e004e7215",
+      "size": 2282,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/f44ea229b019eeaa56520f887859596e004e7215"
+    },
+    {
+      "path": "sdk/python/examples/12_turn_params_kitchen_sink/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "160a9bf18757808026a310cd9d1e2daec6eeefca",
+      "size": 2002,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/160a9bf18757808026a310cd9d1e2daec6eeefca"
+    },
+    {
+      "path": "sdk/python/examples/13_model_select_and_turn_params",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a4eb24c202e329a9cd55aa307e1f1b2d5656c254",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/a4eb24c202e329a9cd55aa307e1f1b2d5656c254"
+    },
+    {
+      "path": "sdk/python/examples/13_model_select_and_turn_params/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d9e706f2409de5e7abbbce48d4535c0edcbe09dc",
+      "size": 3256,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/d9e706f2409de5e7abbbce48d4535c0edcbe09dc"
+    },
+    {
+      "path": "sdk/python/examples/13_model_select_and_turn_params/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4a9afa09805af00f36ada005e3f6f2241d49c1ea",
+      "size": 2926,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/4a9afa09805af00f36ada005e3f6f2241d49c1ea"
+    },
+    {
+      "path": "sdk/python/examples/14_turn_controls",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "308e7f5c2c8099e8475fd263757fcd9be12c0198",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/308e7f5c2c8099e8475fd263757fcd9be12c0198"
+    },
+    {
+      "path": "sdk/python/examples/14_turn_controls/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "86e8def04f424225be1fef21f89b39b716ad0451",
+      "size": 2763,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/86e8def04f424225be1fef21f89b39b716ad0451"
+    },
+    {
+      "path": "sdk/python/examples/14_turn_controls/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c8f1a75e283857bb61c61ba5f1aba95a597ab8ae",
+      "size": 2405,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/c8f1a75e283857bb61c61ba5f1aba95a597ab8ae"
+    },
+    {
+      "path": "sdk/python/examples/15_login_and_account",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "aada72bf9a35a94febbacdfcf6c84fe3302242cd",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/aada72bf9a35a94febbacdfcf6c84fe3302242cd"
+    },
+    {
+      "path": "sdk/python/examples/15_login_and_account/async.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7de6c2afa5d3d4478f66c63cf89f2b8d69266a6e",
+      "size": 1069,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/7de6c2afa5d3d4478f66c63cf89f2b8d69266a6e"
+    },
+    {
+      "path": "sdk/python/examples/15_login_and_account/sync.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ed205311860e38280062962fb0d9398fd2fa707f",
+      "size": 884,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/ed205311860e38280062962fb0d9398fd2fa707f"
+    },
+    {
+      "path": "sdk/python/examples/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79be5890eda54dc6347bebb981a0b6a42e1f97ae",
+      "size": 2751,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/79be5890eda54dc6347bebb981a0b6a42e1f97ae"
+    },
+    {
+      "path": "sdk/python/examples/_bootstrap.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "88039f4b9cd3d14bd9dcabfce4ed9af050ca0910",
+      "size": 3401,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/88039f4b9cd3d14bd9dcabfce4ed9af050ca0910"
+    },
+    {
+      "path": "sdk/python/notebooks",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9bb1a0730f9b07b66d6afa98f899350950800094",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/9bb1a0730f9b07b66d6afa98f899350950800094"
+    },
+    {
+      "path": "sdk/python/notebooks/sdk_walkthrough.ipynb",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3f84cf06757bf9b70db878d301c89b86d1b736a2",
+      "size": 20702,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/3f84cf06757bf9b70db878d301c89b86d1b736a2"
+    },
+    {
+      "path": "sdk/python/pyproject.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a6ff55ee7480d98a1b4dd15d33a9aa5372285d33",
+      "size": 1831,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/a6ff55ee7480d98a1b4dd15d33a9aa5372285d33"
+    },
+    {
+      "path": "sdk/python/release_version.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0340753e7882e5b9c8dfc4d1ff42b863dc678f97",
+      "size": 3075,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/0340753e7882e5b9c8dfc4d1ff42b863dc678f97"
+    },
+    {
+      "path": "sdk/python/scripts",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c7c8162759bdfa57596262d9446f04b68752e72d",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/c7c8162759bdfa57596262d9446f04b68752e72d"
+    },
+    {
+      "path": "sdk/python/scripts/update_sdk_artifacts.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "33dfae57c2fa932e217e49d27551fc534d7cbe16",
+      "size": 53153,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/33dfae57c2fa932e217e49d27551fc534d7cbe16"
+    },
+    {
+      "path": "sdk/python/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3e24b723dd24ae7d12aadee3b715b8d83cae8e3c",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/3e24b723dd24ae7d12aadee3b715b8d83cae8e3c"
+    },
+    {
+      "path": "sdk/python/src/openai_codex",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "fd17d382bab6d503484e410758726a43b2196a8a",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/fd17d382bab6d503484e410758726a43b2196a8a"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2829958dc1fd77a73831c090948298a98386efbe",
+      "size": 2009,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/2829958dc1fd77a73831c090948298a98386efbe"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/_approval_mode.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bbb57030c0a600074e1cb350cad4ae05111c569f",
+      "size": 1685,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/bbb57030c0a600074e1cb350cad4ae05111c569f"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/_goal.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "37a63fc28f4c618a4dbc77e9e408e3f4a7ae24b4",
+      "size": 16291,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/37a63fc28f4c618a4dbc77e9e408e3f4a7ae24b4"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/_initialize_metadata.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "48e5922c46dabc56cf90462f467ecc08713253e9",
+      "size": 1863,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/48e5922c46dabc56cf90462f467ecc08713253e9"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/_inputs.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0a1fbe1100ff78527944576a5941a7aa4789fefc",
+      "size": 1748,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/0a1fbe1100ff78527944576a5941a7aa4789fefc"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/_login.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "377c9489ec4068b4458cc033940e473d1638ba67",
+      "size": 5985,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/377c9489ec4068b4458cc033940e473d1638ba67"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/_message_router.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c979c8c8ddb07e924654748c8cebac43590cf62e",
+      "size": 11855,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/c979c8c8ddb07e924654748c8cebac43590cf62e"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/_run.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8a66923704de5f1b48b6a7459781f3c6b8d668d5",
+      "size": 4295,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/8a66923704de5f1b48b6a7459781f3c6b8d668d5"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/_sandbox.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "24aeb57c858f49d940d1179a7b52df5d7518d3ea",
+      "size": 2443,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/24aeb57c858f49d940d1179a7b52df5d7518d3ea"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/_version.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f6e94c2ed02c545f6ecc63a9bea3bb6ecca5fb74",
+      "size": 906,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/f6e94c2ed02c545f6ecc63a9bea3bb6ecca5fb74"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/api.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6fc9a8243d63d6885e987fcb3b9bd622af91f744",
+      "size": 28918,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/6fc9a8243d63d6885e987fcb3b9bd622af91f744"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/async_client.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07e7d0d4053428af3255bec267ab5fa0ecc70407",
+      "size": 14803,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/07e7d0d4053428af3255bec267ab5fa0ecc70407"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/client.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ab5390ae52bbdf203cf6a7e66d2be9d41f4eb67c",
+      "size": 30896,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/ab5390ae52bbdf203cf6a7e66d2be9d41f4eb67c"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/errors.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "db3e7238d32c6c6d4996cb2f0f16ddcf04e48be2",
+      "size": 3656,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/db3e7238d32c6c6d4996cb2f0f16ddcf04e48be2"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/generated",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "bd0d5945fce06fa1d9aa1b6caf2e39844b1ef0b2",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/bd0d5945fce06fa1d9aa1b6caf2e39844b1ef0b2"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/generated/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d7b3f674b27d6c871dca6db9ebf6a7b3cb68446d",
+      "size": 71,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/d7b3f674b27d6c871dca6db9ebf6a7b3cb68446d"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/generated/notification_registry.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25b47b77244e864489fb2baf55d8c05b5762c2dc",
+      "size": 9601,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/25b47b77244e864489fb2baf55d8c05b5762c2dc"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/generated/v2_all.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "43f32cad0897dd0d6042f6576aa055d6571fab62",
+      "size": 283278,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/43f32cad0897dd0d6042f6576aa055d6571fab62"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/models.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d9d15dc684eec0763ce377dd36e54c8c29c3384a",
+      "size": 3097,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/d9d15dc684eec0763ce377dd36e54c8c29c3384a"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/py.typed",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/retry.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b7e4f77403431a24e47b1790eb49c8a569630f18",
+      "size": 1007,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/b7e4f77403431a24e47b1790eb49c8a569630f18"
+    },
+    {
+      "path": "sdk/python/src/openai_codex/types.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ae4b769db4e5ac444d183a705619fc9f8a314c7f",
+      "size": 1910,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/ae4b769db4e5ac444d183a705619fc9f8a314c7f"
+    },
+    {
+      "path": "sdk/python/tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8ca5b4c56fb71abcdf791f50637af9076a9f9124",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/8ca5b4c56fb71abcdf791f50637af9076a9f9124"
+    },
+    {
+      "path": "sdk/python/tests/app_server_harness.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cf0c84739403801faaf437a00e8a1b1f8a893866",
+      "size": 14946,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/cf0c84739403801faaf437a00e8a1b1f8a893866"
+    },
+    {
+      "path": "sdk/python/tests/app_server_helpers.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "af96a02e80cfe6d0fab888c8f1c8b475671e4ac0",
+      "size": 4012,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/af96a02e80cfe6d0fab888c8f1c8b475671e4ac0"
+    },
+    {
+      "path": "sdk/python/tests/conftest.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f1966ae70a5cc6e43049f9096f4fb25a0fb7d7d5",
+      "size": 393,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/f1966ae70a5cc6e43049f9096f4fb25a0fb7d7d5"
+    },
+    {
+      "path": "sdk/python/tests/test_app_server_approvals.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bc8c36a6bf8bf27a0f479f3b6b1487d219adb608",
+      "size": 8678,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/bc8c36a6bf8bf27a0f479f3b6b1487d219adb608"
+    },
+    {
+      "path": "sdk/python/tests/test_app_server_goal_operations.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c280c7522c34530cbee4021cae0e8d2b8d72b6ab",
+      "size": 3445,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/c280c7522c34530cbee4021cae0e8d2b8d72b6ab"
+    },
+    {
+      "path": "sdk/python/tests/test_app_server_inputs.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "29b8fc77267d4fa80619231fd4d223edaabe2ef3",
+      "size": 4341,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/29b8fc77267d4fa80619231fd4d223edaabe2ef3"
+    },
+    {
+      "path": "sdk/python/tests/test_app_server_lifecycle.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9636c708c2891a2a6aaf626d3e3df2b52d2cd5e9",
+      "size": 10794,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/9636c708c2891a2a6aaf626d3e3df2b52d2cd5e9"
+    },
+    {
+      "path": "sdk/python/tests/test_app_server_login.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "34374494032ba4320128bed98d92309aa58ff7e5",
+      "size": 3377,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/34374494032ba4320128bed98d92309aa58ff7e5"
+    },
+    {
+      "path": "sdk/python/tests/test_app_server_run.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3f741e6ec6f8cfaf57da5d199f427ceda3719688",
+      "size": 13052,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/3f741e6ec6f8cfaf57da5d199f427ceda3719688"
+    },
+    {
+      "path": "sdk/python/tests/test_app_server_streaming.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ff69c69da3ccb26844f6fbeb815b1f0213ca6dd0",
+      "size": 10383,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/ff69c69da3ccb26844f6fbeb815b1f0213ca6dd0"
+    },
+    {
+      "path": "sdk/python/tests/test_app_server_turn_controls.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dd994b88f9fcae825186ad19090a69220589f522",
+      "size": 2988,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/dd994b88f9fcae825186ad19090a69220589f522"
+    },
+    {
+      "path": "sdk/python/tests/test_artifact_workflow_and_binaries.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f62a1bfecf600244ad2d259029dca0aec8bb096b",
+      "size": 38829,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/f62a1bfecf600244ad2d259029dca0aec8bb096b"
+    },
+    {
+      "path": "sdk/python/tests/test_async_client_behavior.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "59d44db7161d78e15009e792aa350cba5131600c",
+      "size": 3852,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/59d44db7161d78e15009e792aa350cba5131600c"
+    },
+    {
+      "path": "sdk/python/tests/test_client_rpc_methods.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "075951213f545ac80fc6c1acca9a7ae6ddb1e085",
+      "size": 15085,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/075951213f545ac80fc6c1acca9a7ae6ddb1e085"
+    },
+    {
+      "path": "sdk/python/tests/test_contract_generation.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "81d1692bdf496432f2607409bb7899c1818108ef",
+      "size": 1991,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/81d1692bdf496432f2607409bb7899c1818108ef"
+    },
+    {
+      "path": "sdk/python/tests/test_mcp_conformance_fixtures.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "57f6bc159267fc916473840912ba207beb39828c",
+      "size": 1189,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/57f6bc159267fc916473840912ba207beb39828c"
+    },
+    {
+      "path": "sdk/python/tests/test_public_api_runtime_behavior.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4cee695feee477a9bc72b9db40a8f980f46b6fde",
+      "size": 6543,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/4cee695feee477a9bc72b9db40a8f980f46b6fde"
+    },
+    {
+      "path": "sdk/python/tests/test_public_api_signatures.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c26ac90f6b1f2000f6638d2da7cc086f375d5bc7",
+      "size": 16861,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/c26ac90f6b1f2000f6638d2da7cc086f375d5bc7"
+    },
+    {
+      "path": "sdk/python/tests/test_real_app_server_integration.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5c4ec83fd4919d7e45d9ad2e5e8ba75a11e303ae",
+      "size": 18880,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/5c4ec83fd4919d7e45d9ad2e5e8ba75a11e303ae"
+    },
+    {
+      "path": "sdk/python/uv.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "33618337a3e7dde96d20239599f1cd7fb8d91f1e",
+      "size": 140708,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/33618337a3e7dde96d20239599f1cd7fb8d91f1e"
+    },
+    {
+      "path": "sdk/typescript",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "933dd11861c72e221c313f8318f998756f19ff7b",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/933dd11861c72e221c313f8318f998756f19ff7b"
+    },
+    {
+      "path": "sdk/typescript/.prettierignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "007ea8a7ceb5d1545a77b354c04a9b556cd7a5d0",
+      "size": 27,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/007ea8a7ceb5d1545a77b354c04a9b556cd7a5d0"
+    },
+    {
+      "path": "sdk/typescript/.prettierrc",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b68d0e11f5af458d5a6013cfdeb274b557fe3851",
+      "size": 74,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/b68d0e11f5af458d5a6013cfdeb274b557fe3851"
+    },
+    {
+      "path": "sdk/typescript/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "afbbde57e5f7f574d8041bb7abf3556c2f520c23",
+      "size": 4650,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/afbbde57e5f7f574d8041bb7abf3556c2f520c23"
+    },
+    {
+      "path": "sdk/typescript/eslint.config.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "324d06818b77d12bc9301f3c1d40d12203dcbd6f",
+      "size": 523,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/324d06818b77d12bc9301f3c1d40d12203dcbd6f"
+    },
+    {
+      "path": "sdk/typescript/jest.config.cjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "37f03d51dba2cb71f9258504fff8829ab60a287d",
+      "size": 838,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/37f03d51dba2cb71f9258504fff8829ab60a287d"
+    },
+    {
+      "path": "sdk/typescript/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d75c8f0317bc0e33a1d5afa0ba67c988e765786d",
+      "size": 1934,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/d75c8f0317bc0e33a1d5afa0ba67c988e765786d"
+    },
+    {
+      "path": "sdk/typescript/samples",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1bb968dc690e3bc10e67675d8e2f6ec2d55896eb",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/1bb968dc690e3bc10e67675d8e2f6ec2d55896eb"
+    },
+    {
+      "path": "sdk/typescript/samples/basic_streaming.ts",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "09b58e965058c1d33c1e5aeb99d44727f1b29aba",
+      "size": 2682,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/09b58e965058c1d33c1e5aeb99d44727f1b29aba"
+    },
+    {
+      "path": "sdk/typescript/samples/helpers.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c4643091c79a86b8708585e344f8743c12a5bcbe",
+      "size": 204,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/c4643091c79a86b8708585e344f8743c12a5bcbe"
+    },
+    {
+      "path": "sdk/typescript/samples/structured_output.ts",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "60063c10fa3db85dd609b3715ec22d44324f16ac",
+      "size": 619,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/60063c10fa3db85dd609b3715ec22d44324f16ac"
+    },
+    {
+      "path": "sdk/typescript/samples/structured_output_zod.ts",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "917bc39114feed46ccb7d64dade30bcfb8c1c9a2",
+      "size": 596,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/917bc39114feed46ccb7d64dade30bcfb8c1c9a2"
+    },
+    {
+      "path": "sdk/typescript/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9949d4040e67a4801a9cdb18a03071bc2aea24eb",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/9949d4040e67a4801a9cdb18a03071bc2aea24eb"
+    },
+    {
+      "path": "sdk/typescript/src/codex.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e3ce4aa0de9753baefc82dc407f1b5f4822baaaf",
+      "size": 1196,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/e3ce4aa0de9753baefc82dc407f1b5f4822baaaf"
+    },
+    {
+      "path": "sdk/typescript/src/codexOptions.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b6abb94b79ebc9b550e1a135d0981ae65c91e062",
+      "size": 749,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/b6abb94b79ebc9b550e1a135d0981ae65c91e062"
+    },
+    {
+      "path": "sdk/typescript/src/events.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f6ad902779bee05ab0fb9b9cc6a2bca59d52c136",
+      "size": 2404,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/f6ad902779bee05ab0fb9b9cc6a2bca59d52c136"
+    },
+    {
+      "path": "sdk/typescript/src/exec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "26741bcc3167ca6882d4ad320ec67bf9be2be1ba",
+      "size": 13706,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/26741bcc3167ca6882d4ad320ec67bf9be2be1ba"
+    },
+    {
+      "path": "sdk/typescript/src/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a74f391a74a3b3b5e2af863e4aacb249c9400ff8",
+      "size": 810,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/a74f391a74a3b3b5e2af863e4aacb249c9400ff8"
+    },
+    {
+      "path": "sdk/typescript/src/items.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8fd3b2c7ff5b47da5f64b16828e03c75c5e60961",
+      "size": 3598,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/8fd3b2c7ff5b47da5f64b16828e03c75c5e60961"
+    },
+    {
+      "path": "sdk/typescript/src/outputSchemaFile.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "13adb4c721d56a71da14a05f8f5f7da592201366",
+      "size": 1084,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/13adb4c721d56a71da14a05f8f5f7da592201366"
+    },
+    {
+      "path": "sdk/typescript/src/thread.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1db3ac59c1654eec943e5f6c67470b6197c29442",
+      "size": 4928,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/1db3ac59c1654eec943e5f6c67470b6197c29442"
+    },
+    {
+      "path": "sdk/typescript/src/threadOptions.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7bde5e4d78fe7fbc2394db5dd527a4edb3255310",
+      "size": 662,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/7bde5e4d78fe7fbc2394db5dd527a4edb3255310"
+    },
+    {
+      "path": "sdk/typescript/src/turnOptions.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1eda806694ec73a1a6322bc484f56c8fd3c09f77",
+      "size": 181,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/1eda806694ec73a1a6322bc484f56c8fd3c09f77"
+    },
+    {
+      "path": "sdk/typescript/tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a18a26df28e9ce5970c1bb1e1f6f466e2a09cb7d",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/a18a26df28e9ce5970c1bb1e1f6f466e2a09cb7d"
+    },
+    {
+      "path": "sdk/typescript/tests/abort.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ca93b1e89da3eec88610dcf2487814ba78adab97",
+      "size": 4956,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/ca93b1e89da3eec88610dcf2487814ba78adab97"
+    },
+    {
+      "path": "sdk/typescript/tests/codexExecSpy.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "81092b742254d03aa833476a31c05b9466f0f216",
+      "size": 1356,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/81092b742254d03aa833476a31c05b9466f0f216"
+    },
+    {
+      "path": "sdk/typescript/tests/exec.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "eb068f3f1aedd16c09d6e722320972b87731c437",
+      "size": 7186,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/eb068f3f1aedd16c09d6e722320972b87731c437"
+    },
+    {
+      "path": "sdk/typescript/tests/mcpConformance.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "28ad908f07183fc13cfa04420c2faea77590e079",
+      "size": 4819,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/28ad908f07183fc13cfa04420c2faea77590e079"
+    },
+    {
+      "path": "sdk/typescript/tests/responsesProxy.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "012cbf2320ab5f7eb3726cc11ca49926c266990a",
+      "size": 5674,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/012cbf2320ab5f7eb3726cc11ca49926c266990a"
+    },
+    {
+      "path": "sdk/typescript/tests/run.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "86b57bc7ee26640cc4e13f864a0f56c204d58978",
+      "size": 24241,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/86b57bc7ee26640cc4e13f864a0f56c204d58978"
+    },
+    {
+      "path": "sdk/typescript/tests/runStreamed.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "605dfce15975d9a5a9614eac3adb782985a0d7ae",
+      "size": 6123,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/605dfce15975d9a5a9614eac3adb782985a0d7ae"
+    },
+    {
+      "path": "sdk/typescript/tests/setupCodexHome.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83e49c6acc631e1462522b4eafc5734d9d9defb9",
+      "size": 746,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/83e49c6acc631e1462522b4eafc5734d9d9defb9"
+    },
+    {
+      "path": "sdk/typescript/tests/testCodex.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a95a685165f047c504455e874edc755d05b9b3b5",
+      "size": 2927,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/a95a685165f047c504455e874edc755d05b9b3b5"
+    },
+    {
+      "path": "sdk/typescript/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8d62e0694168ec878262c04942b9fe17bafabebe",
+      "size": 650,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/8d62e0694168ec878262c04942b9fe17bafabebe"
+    },
+    {
+      "path": "sdk/typescript/tsup.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "22bcd039388627d882524ba90dfa3a898ccbf010",
+      "size": 218,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/22bcd039388627d882524ba90dfa3a898ccbf010"
+    },
+    {
+      "path": "third_party",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "38d57dfbe87084a41540109f59b20de1c8ee44e5",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/38d57dfbe87084a41540109f59b20de1c8ee44e5"
+    },
+    {
+      "path": "third_party/powershell",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d335102d0b5ef1e20da7a3134c39061003941a0c",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/d335102d0b5ef1e20da7a3134c39061003941a0c"
+    },
+    {
+      "path": "third_party/powershell/BUILD.bazel",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fb5ca91e950dc4438e25cfbecd7b76f3fa8f11fe",
+      "size": 585,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/fb5ca91e950dc4438e25cfbecd7b76f3fa8f11fe"
+    },
+    {
+      "path": "third_party/v8",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "aa76568f567fd4c3e82baab9f6210d1455d231c5",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/aa76568f567fd4c3e82baab9f6210d1455d231c5"
+    },
+    {
+      "path": "third_party/v8/BUILD.bazel",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d874bce0e01211011d79238887a94029e74aaef2",
+      "size": 14619,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/d874bce0e01211011d79238887a94029e74aaef2"
+    },
+    {
+      "path": "third_party/v8/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "21adf3899d8dd5c5d6d65e7bf40ff977f929f0c9",
+      "size": 5357,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/21adf3899d8dd5c5d6d65e7bf40ff977f929f0c9"
+    },
+    {
+      "path": "third_party/v8/libcxx.BUILD.bazel",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e5bdaa8c35322036ff40641d3ce89236dfcb64e1",
+      "size": 4400,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/e5bdaa8c35322036ff40641d3ce89236dfcb64e1"
+    },
+    {
+      "path": "third_party/v8/libcxx_config",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4471033cee34bd4f594edc6225e3e1c537aeb172",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/4471033cee34bd4f594edc6225e3e1c537aeb172"
+    },
+    {
+      "path": "third_party/v8/libcxx_config/BUILD.bazel",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e4a3ee6a85616ea08523af721777362004a9e62b",
+      "size": 235,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/e4a3ee6a85616ea08523af721777362004a9e62b"
+    },
+    {
+      "path": "third_party/v8/libcxx_config/__assertion_handler",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1d1c2c98f2c3815ae58942cb4373b6aa26d82b05",
+      "size": 606,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/1d1c2c98f2c3815ae58942cb4373b6aa26d82b05"
+    },
+    {
+      "path": "third_party/v8/libcxx_config/__config_site",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1053f9fe45b15d39f995a215a7dd0adc42c4cc4f",
+      "size": 1466,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/1053f9fe45b15d39f995a215a7dd0adc42c4cc4f"
+    },
+    {
+      "path": "third_party/v8/libcxxabi.BUILD.bazel",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "24e8ed5a6230cf39fa121f2a9dfff1e33e3d8207",
+      "size": 2859,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/24e8ed5a6230cf39fa121f2a9dfff1e33e3d8207"
+    },
+    {
+      "path": "third_party/v8/llvm_libc.BUILD.bazel",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9774f5692b9e4880aeaba7030b0f8db645d316d4",
+      "size": 388,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/9774f5692b9e4880aeaba7030b0f8db645d316d4"
+    },
+    {
+      "path": "third_party/v8/rusty_v8_150_4_0.sha256",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "628ae7a9ac94eee0e0dd66c927964a0ad06544d7",
+      "size": 227,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/628ae7a9ac94eee0e0dd66c927964a0ad06544d7"
+    },
+    {
+      "path": "third_party/v8/v8_crate.BUILD.bazel",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3988bc03455a9660b8f4c207916cfd1511577633",
+      "size": 1098,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/3988bc03455a9660b8f4c207916cfd1511577633"
+    },
+    {
+      "path": "third_party/wezterm",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7363499e6429fb1b45416fc49d584531ec97575c",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/7363499e6429fb1b45416fc49d584531ec97575c"
+    },
+    {
+      "path": "third_party/wezterm/LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d6c7256999f5e91218e3cc8bb7fc04a0b54e6d71",
+      "size": 1076,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/d6c7256999f5e91218e3cc8bb7fc04a0b54e6d71"
+    },
+    {
+      "path": "third_party/wine",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e7c2a755ab8dde7158a7ccb7eac80beeef19c9d7",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/e7c2a755ab8dde7158a7ccb7eac80beeef19c9d7"
+    },
+    {
+      "path": "third_party/wine/BUILD.bazel",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b0073861d09dcc168c84b4027c0c2e9cb426e5aa",
+      "size": 824,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/b0073861d09dcc168c84b4027c0c2e9cb426e5aa"
+    },
+    {
+      "path": "tools",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a9b50aeb5ee1695cb32b881ebb7c4adffe39f616",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/a9b50aeb5ee1695cb32b881ebb7c4adffe39f616"
+    },
+    {
+      "path": "tools/argument-comment-lint",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "61bab6d8cbde993d5e139e3567eda1862c336dd7",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/61bab6d8cbde993d5e139e3567eda1862c336dd7"
+    },
+    {
+      "path": "tools/argument-comment-lint/.cargo",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d0b6fc6cdeabaaa89c39a185f43f936deaeb9f57",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/d0b6fc6cdeabaaa89c39a185f43f936deaeb9f57"
+    },
+    {
+      "path": "tools/argument-comment-lint/.cargo/config.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "226eca535bf5f246cbbd0fea86a23034e5b44db1",
+      "size": 221,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/226eca535bf5f246cbbd0fea86a23034e5b44db1"
+    },
+    {
+      "path": "tools/argument-comment-lint/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea8c4bf7f35f6f77f75d92ad8ce8349f6e81ddba",
+      "size": 8,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/ea8c4bf7f35f6f77f75d92ad8ce8349f6e81ddba"
+    },
+    {
+      "path": "tools/argument-comment-lint/BUILD.bazel",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5d2695a80df4462ddf9b90f68865ffa1eb68a4ce",
+      "size": 824,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/5d2695a80df4462ddf9b90f68865ffa1eb68a4ce"
+    },
+    {
+      "path": "tools/argument-comment-lint/Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1795ff683b86672de2bd2a48a41b4274e3f63d2a",
+      "size": 41781,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/1795ff683b86672de2bd2a48a41b4274e3f63d2a"
+    },
+    {
+      "path": "tools/argument-comment-lint/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "db02b392f3a5e3f584c0a7e882ae76499af2ab12",
+      "size": 491,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/db02b392f3a5e3f584c0a7e882ae76499af2ab12"
+    },
+    {
+      "path": "tools/argument-comment-lint/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "889bae1df231358b342cd8f2fba127b9fe9cdb47",
+      "size": 6283,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/889bae1df231358b342cd8f2fba127b9fe9cdb47"
+    },
+    {
+      "path": "tools/argument-comment-lint/argument-comment-lint",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "602117e3ce2af40792e31c1d50db872ad18e4160",
+      "size": 2757,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/602117e3ce2af40792e31c1d50db872ad18e4160"
+    },
+    {
+      "path": "tools/argument-comment-lint/driver.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b6417d45fdcbb43b0e858556d71eea1e007ed070",
+      "size": 1204,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/b6417d45fdcbb43b0e858556d71eea1e007ed070"
+    },
+    {
+      "path": "tools/argument-comment-lint/lint_aspect.bzl",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c20a79caa2a710441cccb4e2a884224983404c13",
+      "size": 5954,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/c20a79caa2a710441cccb4e2a884224983404c13"
+    },
+    {
+      "path": "tools/argument-comment-lint/list-bazel-targets.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "9418f59fbd875da6659210c3b856fa74057e556b",
+      "size": 1364,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/9418f59fbd875da6659210c3b856fa74057e556b"
+    },
+    {
+      "path": "tools/argument-comment-lint/run-prebuilt-linter.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "31a5c226f361e06b564622fc131d8b970e84fd15",
+      "size": 1212,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/31a5c226f361e06b564622fc131d8b970e84fd15"
+    },
+    {
+      "path": "tools/argument-comment-lint/run.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "c6247c44b3eccb7bdc9719f36fca2f5217fb73ce",
+      "size": 867,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/c6247c44b3eccb7bdc9719f36fca2f5217fb73ce"
+    },
+    {
+      "path": "tools/argument-comment-lint/rust-toolchain",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d159253fc0367b25914cb8bbfcaa95f3c5196336",
+      "size": 104,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/d159253fc0367b25914cb8bbfcaa95f3c5196336"
+    },
+    {
+      "path": "tools/argument-comment-lint/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ad99bc4317265e4ba6c93eb2f57cc72dbefea5c1",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/ad99bc4317265e4ba6c93eb2f57cc72dbefea5c1"
+    },
+    {
+      "path": "tools/argument-comment-lint/src/bin",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ea11c9184593209b24116b07c009e4123d911e31",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/ea11c9184593209b24116b07c009e4123d911e31"
+    },
+    {
+      "path": "tools/argument-comment-lint/src/bin/argument-comment-lint.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9dfe83b0fbb5330207d97811effb7e53f56666e5",
+      "size": 8823,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/9dfe83b0fbb5330207d97811effb7e53f56666e5"
+    },
+    {
+      "path": "tools/argument-comment-lint/src/comment_parser.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7ea66c195b7b4d50a4fb2c4ec7d73c73ea09e683",
+      "size": 2047,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/7ea66c195b7b4d50a4fb2c4ec7d73c73ea09e683"
+    },
+    {
+      "path": "tools/argument-comment-lint/src/lib.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "76b9e17732db18c5e5dda3a3ddbdfa4e057bc6fa",
+      "size": 9366,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/76b9e17732db18c5e5dda3a3ddbdfa4e057bc6fa"
+    },
+    {
+      "path": "tools/argument-comment-lint/test_wrapper_common.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3998f2e41a3fda6f7fd9e8384258f365643309ba",
+      "size": 3594,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/3998f2e41a3fda6f7fd9e8384258f365643309ba"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c9075378ab338f9ecf971fabe3b289b39a198840",
+      "url": "https://api.github.com/repos/openai/codex/git/trees/c9075378ab338f9ecf971fabe3b289b39a198840"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/allow_char_literals.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "85ef7d362f306918cb5b9f51941090ee740a2927",
+      "size": 183,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/85ef7d362f306918cb5b9f51941090ee740a2927"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/allow_self_documenting_methods.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d57f7c521da455f8067141294c6a8ace01e74f64",
+      "size": 499,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/d57f7c521da455f8067141294c6a8ace01e74f64"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/allow_string_literals.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9d61c4a761ed097dba3ce83aed250c3ded546f36",
+      "size": 193,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/9d61c4a761ed097dba3ce83aed250c3ded546f36"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/comment_matches.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f582fb958f24eccfcd01d601f6559b325624c207",
+      "size": 334,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/f582fb958f24eccfcd01d601f6559b325624c207"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/comment_matches_multiline.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "45683841ff0cda533df6ff40cd2a4c961dc83afa",
+      "size": 361,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/45683841ff0cda533df6ff40cd2a4c961dc83afa"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/comment_mismatch.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f3ad4db75478f4db40c6ea331e1a06fe78c7229d",
+      "size": 374,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/f3ad4db75478f4db40c6ea331e1a06fe78c7229d"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/comment_mismatch.stderr",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "058871395a31fb3f28328876db409958ea28111d",
+      "size": 699,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/058871395a31fb3f28328876db409958ea28111d"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/ignore_external_methods.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "44c72707d069f0bf5e9776ae337c234b069b3b3b",
+      "size": 250,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/44c72707d069f0bf5e9776ae337c234b069b3b3b"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/multiple_method_arguments.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e15f15624300bc09e4e1db165c51d68120cb34f3",
+      "size": 279,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/e15f15624300bc09e4e1db165c51d68120cb34f3"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/multiple_method_arguments.stderr",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f9b452e4fce44186dbcd21fd8e07a0d3d52c7a1f",
+      "size": 503,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/f9b452e4fce44186dbcd21fd8e07a0d3d52c7a1f"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/uncommented_literal.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a64804c78094e74646e512cb2815d4592df8b495",
+      "size": 367,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/a64804c78094e74646e512cb2815d4592df8b495"
+    },
+    {
+      "path": "tools/argument-comment-lint/ui/uncommented_literal.stderr",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a1060ef6937a7c920b185099c96f1b4f442788a2",
+      "size": 978,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/a1060ef6937a7c920b185099c96f1b4f442788a2"
+    },
+    {
+      "path": "tools/argument-comment-lint/wrapper_common.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2473029b8e1af16ef4692ffc2cd1786bf5d07b59",
+      "size": 9475,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/2473029b8e1af16ef4692ffc2cd1786bf5d07b59"
+    },
+    {
+      "path": "tools/buildifier",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "d18dd60ac6b317d06c6ccf850654b2e06e29395d",
+      "size": 2172,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/d18dd60ac6b317d06c6ccf850654b2e06e29395d"
+    },
+    {
+      "path": "workspace_root_test_launcher.bat.tpl",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fa18c301dd22ca9023ba2f59801a8119dfbf8a69",
+      "size": 7627,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/fa18c301dd22ca9023ba2f59801a8119dfbf8a69"
+    },
+    {
+      "path": "workspace_root_test_launcher.sh.tpl",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4606fd8b15274f3e52aca493a34f32264d124c06",
+      "size": 4713,
+      "url": "https://api.github.com/repos/openai/codex/git/blobs/4606fd8b15274f3e52aca493a34f32264d124c06"
+    }
+  ],
+  "truncated": false
+}
