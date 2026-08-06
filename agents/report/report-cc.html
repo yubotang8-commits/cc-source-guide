@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Claude Code (CC) 架构报告</title>
+<style>
+  :root { --bg: #fafafa; --border: #e0e0e0; --accent: #d97706; --tag: #fef3c7; --code-bg: #1e1e1e; --code-fg: #d4d4d4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: #1a1a1a; line-height: 1.7; max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.8rem; margin-bottom: 0.3rem; border-bottom: 3px solid var(--accent); padding-bottom: 0.5rem; }
+  h2 { font-size: 1.3rem; margin: 2rem 0 0.8rem; color: #92400e; border-left: 4px solid var(--accent); padding-left: 0.6rem; }
+  h3 { font-size: 1.05rem; margin: 1.2rem 0 0.4rem; color: #78350f; }
+  .subtitle { color: #666; font-size: 0.95rem; margin-bottom: 2rem; }
+  .meta { display: inline-block; background: var(--tag); padding: 2px 10px; border-radius: 4px; font-size: 0.82rem; margin: 0 4px 4px 0; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.6rem 0; }
+  code { font-family: "Cascadia Code", "Fira Code", monospace; }
+  :not(pre) > code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f4; font-weight: 600; }
+  .flow { background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 1rem; margin: 0.8rem 0; font-family: monospace; font-size: 0.85rem; white-space: pre; overflow-x: auto; }
+  .term { color: var(--accent); font-weight: 600; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.9rem; border-radius: 0 6px 6px 0; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>Claude Code (CC) 架构报告</h1>
+<p class="subtitle">TypeScript / React 单体前端 + Bridge 架构 | 泄露源码 v3.31 | 1,903 文件</p>
+<span class="meta">TypeScript</span><span class="meta">React</span><span class="meta">Anthropic SDK</span><span class="meta">JSONL 持久化</span>
+
+<h2>1. 术语映射</h2>
+<table>
+<tr><th>CC 概念</th><th>CC 术语</th><th>CX 对应</th><th>OX 对应</th></tr>
+<tr><td>一次对话</td><td class="term">Session</td><td>Thread / Rollout</td><td>Session</td></tr>
+<tr><td>对话历史记录</td><td class="term">Transcript</td><td>Rollout</td><td>History</td></tr>
+<tr><td>一次 LLM 调用 + 工具执行</td><td class="term">Turn</td><td>Turn</td><td>Step</td></tr>
+<tr><td>LLM 返回的 tool_use</td><td class="term">ToolUse Block</td><td>ResponseItem</td><td>ToolCall Event</td></tr>
+<tr><td>工具执行结果</td><td class="term">ToolResult</td><td>FunctionToolOutput</td><td>Settlement</td></tr>
+<tr><td>压缩对话上下文</td><td class="term">Compact</td><td>Auto-Compact</td><td>Compaction</td></tr>
+<tr><td>系统提示词</td><td class="term">System Prompt (Sections)</td><td>BaseInstructions</td><td>SystemContext</td></tr>
+<tr><td>权限询问</td><td class="term">canUseTool</td><td>AskForApproval</td><td>Permission.assert</td></tr>
+<tr><td>安全审查</td><td class="term">YOLO Classifier</td><td>Guardian</td><td>PermissionV2.evaluate</td></tr>
+</table>
+
+<h2>2. Agent Loop — <code>queryLoop()</code></h2>
+<p>核心文件: <code>query.ts</code></p>
+
+<h3>2.1 循环结构</h3>
+<pre>async function* queryLoop(params, consumedCommandUuids) {
+  let state: State = { messages, toolUseContext, autoCompactTracking, turnCount, ... }
+
+  while (true) {
+    // ① 发送消息给 LLM API（流式）
+    // ② 收集 model 的 tool_use blocks
+    // ③ 并行/串行执行工具
+    // ④ 判断是否继续
+
+    if (no_tool_use)      return { reason: 'completed' }     // 正常退出：模型给出最终文本
+    if (user_aborted)     return { reason: 'aborted_tools' }  // 用户中断
+    if (hook_stopped)     return { reason: 'hook_stopped' }   // Hook 阻止
+    if (max_turns)        return { reason: 'max_turns' }      // 达到最大轮次
+    if (context_overflow) return { reason: 'prompt_too_long' } // 上下文溢出
+    if (api_error)        return { reason: 'model_error' }     // API 错误
+
+    // ⑤ 有工具结果 → 拼入 messages → 继续循环
+    state = { messages: [...messagesForQuery, ...assistantMessages, ...toolResults], ... }
+  }
+}</pre>
+
+<h3>2.2 正常退出 vs 异常退出</h3>
+<table>
+<tr><th>退出原因</th><th>reason 值</th><th>触发条件</th></tr>
+<tr><td>正常完成</td><td><code>completed</code></td><td>LLM 返回纯文本，无 tool_use</td></tr>
+<tr><td>用户中断</td><td><code>aborted_tools</code></td><td>用户在工具执行期间按 Ctrl+C 或 ESC</td></tr>
+<tr><td>Hook 阻止</td><td><code>hook_stopped</code></td><td>PostToolUse hook 返回 preventContinuation</td></tr>
+<tr><td>轮次上限</td><td><code>max_turns</code></td><td>超过配置的最大 turn 数</td></tr>
+<tr><td>上下文溢出</td><td><code>prompt_too_long</code></td><td>compaction 后仍超出 token 限制</td></tr>
+<tr><td>模型错误</td><td><code>model_error</code></td><td>API 返回不可恢复的错误</td></tr>
+</table>
+
+<h3>2.3 流式工具执行</h3>
+<p>CC 独有特性：LLM 仍在输出时就 <strong>开始执行工具</strong>。</p>
+<div class="flow">StreamingToolExecutor:
+  LLM 流式输出 → 收到完整 tool_use block → 立即入队执行
+  ↓
+  isConcurrencySafe? → Yes → 并行执行（最多10个）
+                     → No  → 串行等待
+  ↓
+  LLM 流结束 → 收集剩余工具结果 → 下一轮</div>
+
+<h2>3. 上下文管理（会话管理与持久化）</h2>
+
+<h3>3.1 Transcript 持久化格式</h3>
+<p>文件格式: <strong>JSONL</strong>（每行一个 JSON 对象），路径: <code>~/.claude/projects/{hash}/{sessionId}.jsonl</code></p>
+<pre>// 每条记录类型（Entry）
+type Entry =
+  | TranscriptMessage          // user/assistant/system 消息
+  | SpeculationAcceptMessage   // 推测接受记录
+  | FileHistorySnapshotMessage // 文件历史快照
+  | AttributionSnapshotMessage // 归属数据
+  | ModeEntry                  // coordinator/普通模式切换
+  | ContextCollapseCommitEntry // 上下文折叠提交</pre>
+
+<h3>3.2 三级 Compaction 策略</h3>
+<div class="flow">① Session Memory Compact（轻量）
+   使用自动提取的会话记忆文件，快速压缩
+   ↓ 失败时降级
+② Reactive Compact（增量，feature-gated）
+   增量压缩，仅处理新增内容
+   ↓ 失败时降级
+③ Traditional Compact（全量）
+   启动 forked subagent 对整个对话做摘要
+   压缩后恢复最近5个被编辑文件到上下文</div>
+<pre>// Session Memory Compact 配置
+DEFAULT_SM_COMPACT_CONFIG = {
+  minTokens: 10_000,        // 压缩后至少保留 10K tokens
+  minTextBlockMessages: 5,  // 至少保留 5 条文本消息
+  maxTokens: 40_000,        // 硬上限 40K tokens
+}</pre>
+
+<h2>4. 记忆机制</h2>
+
+<h3>4.1 CLAUDE.md 分层体系</h3>
+<p>4 级优先级，从低到高：</p>
+<table>
+<tr><th>层级</th><th>路径</th><th>说明</th></tr>
+<tr><td>1 - 全局管理</td><td><code>/etc/claude-code/CLAUDE.md</code></td><td>所有用户的全局指令</td></tr>
+<tr><td>2 - 用户</td><td><code>~/.claude/CLAUDE.md</code></td><td>个人跨项目指令</td></tr>
+<tr><td>3 - 项目</td><td><code>CLAUDE.md</code> / <code>.claude/CLAUDE.md</code> / <code>.claude/rules/*.md</code></td><td>可提交到代码仓库</td></tr>
+<tr><td>4 - 本地</td><td><code>CLAUDE.local.md</code></td><td>不提交的本地指令</td></tr>
+</table>
+<p>加载规则：从当前目录向根目录遍历。越靠近当前目录优先级越高（后加载的更受重视）。</p>
+
+<h3>4.2 自动会话记忆（Session Memory）</h3>
+<p>后台 forked subagent 自动提取对话笔记，不中断主流程。</p>
+<pre>DEFAULT_SESSION_MEMORY_CONFIG = {
+  minimumMessageTokensToInit: 10000,  // 10K tokens 后启动
+  minimumTokensBetweenUpdate: 5000,   // 每 5K token 增长更新
+  toolCallsBetweenUpdates: 3,         // 或每 3 次工具调用更新
+}</pre>
+
+<h2>5. 提示词管理</h2>
+
+<h3>5.1 Section 架构</h3>
+<p>系统提示词由多个 <strong>Section</strong> 组成，支持缓存和独立更新：</p>
+<pre>systemPromptSection(name, compute)           // 缓存直到 /clear 或 /compact
+DANGEROUS_uncachedSystemPromptSection(name)  // 每轮都重新计算（MCP 指令等）</pre>
+
+<h3>5.2 优先级</h3>
+<div class="flow">0. Override system prompt（如设置则替换所有）
+1. Coordinator system prompt
+2. Agent system prompt（proactive 模式追加，否则替换默认）
+3. Custom system prompt（--system-prompt 参数）
+4. Default system prompt
++ appendSystemPrompt 始终追加到末尾</div>
+
+<h3>5.3 默认 Section 列表</h3>
+<table>
+<tr><th>Section</th><th>缓存</th><th>内容</th></tr>
+<tr><td>session_guidance</td><td>是</td><td>会话级引导</td></tr>
+<tr><td>memory</td><td>是</td><td>CLAUDE.md 内容</td></tr>
+<tr><td>env_info_simple</td><td>是</td><td>OS、cwd、日期、模型</td></tr>
+<tr><td>mcp_instructions</td><td><strong>否</strong></td><td>MCP 服务器指令（每轮重新获取）</td></tr>
+<tr><td>scratchpad</td><td>是</td><td>草稿板</td></tr>
+<tr><td>frc</td><td>是</td><td>函数结果清除</td></tr>
+<tr><td>token_budget</td><td>是</td><td>token 预算信息</td></tr>
+</table>
+
+<h2>6. 状态管理</h2>
+
+<h3>6.1 双层状态架构</h3>
+<table>
+<tr><th>层</th><th>文件</th><th>范围</th><th>内容</th></tr>
+<tr><td>Bootstrap 全局</td><td><code>bootstrap/state.ts</code></td><td>进程级单例</td><td>sessionId, totalCostUSD, modelUsage, systemPromptCache, cronTasks, plugins...</td></tr>
+<tr><td>React AppState</td><td><code>state/AppStateStore.ts</code></td><td>UI 组件级</td><td>settings, toolPermissionContext, mcp, plugins, todos, fileHistory, tasks...</td></tr>
+</table>
+
+<h3>6.2 会话状态机</h3>
+<pre>type SessionState = 'idle' | 'running' | 'requires_action'
+
+状态转换:
+  idle → running         用户发送消息
+  running → requires_action  工具需要用户授权
+  requires_action → running  用户授权（allow/always）
+  running → idle            模型完成回复（无 tool_use）
+  requires_action → idle    用户拒绝（deny）</pre>
+
+<h2>7. 安全机制</h2>
+
+<h3>7.1 权限管道</h3>
+<div class="flow">工具调用请求
+  ↓
+① PreToolUse Hooks（可 deny/allow/ask）
+  ↓
+② canUseTool 门控
+  ├─ 2a. checkRuleBasedPermissions（settings.json 规则）
+  ├─ 2b. 工具特定检查（Bash: bashSecurity, pathValidation）
+  ├─ 2c. auto 模式 → AI Classifier 评估
+  ├─ 2d. safetyCheck（不可被 classifier 覆盖）
+  └─ 2e. 仍为 ask → 用户交互提示
+  ↓
+③ 沙箱内执行
+  ├─ 网络限制（allowedDomains）
+  ├─ 文件系统限制（denyWrite/denyRead）
+  └─ 后清理：清除可能植入的 git bare-repo 文件
+  ↓
+④ PostToolUse Hooks（可添加上下文或阻止继续）</div>
+
+<h3>7.2 三值权限模型</h3>
+<pre>type PermissionBehavior = 'allow' | 'deny' | 'ask'
+type PermissionMode = 'acceptEdits' | 'bypassPermissions' | 'default'
+                    | 'dontAsk' | 'plan' | 'auto'</pre>
+<p>规则格式：<code>ToolName(content)</code>，如 <code>Bash(npm test)</code> 允许运行 npm test。</p>
+
+<h3>7.3 Bash 安全检查</h3>
+<p>30+ 安全模式检测，阻止命令注入：</p>
+<pre>// 示例检测模式
+/\<\(/   → 进程替换 &lt;()
+/\$\(/   → $() 命令替换
+/\$\{/   → ${} 参数替换
+/\<#/    → PowerShell 注释</pre>
+
+<h3>7.4 沙箱</h3>
+<p>通过 <code>@anthropic-ai/sandbox-runtime</code> 实现：</p>
+<ul>
+  <li>macOS: <code>bubblewrap</code></li>
+  <li>Linux: 原生沙箱</li>
+  <li>网络: 域名白名单（<code>allowedDomains</code>）</li>
+  <li>文件系统: denyWrite/denyRead 控制</li>
+  <li>防御: 阻止通过 git bare-repo 逃逸沙箱</li>
+</ul>
+
+<h2>8. 工具使用</h2>
+
+<h3>8.1 内置工具</h3>
+<table>
+<tr><th>工具名</th><th>功能</th><th>并发安全</th></tr>
+<tr><td>Bash</td><td>执行 Shell 命令</td><td>仅 read-only 时</td></tr>
+<tr><td>FileRead</td><td>读取文件</td><td>是</td></tr>
+<tr><td>FileEdit</td><td>编辑文件（精确替换）</td><td>否</td></tr>
+<tr><td>FileWrite</td><td>写入文件</td><td>否</td></tr>
+<tr><td>Glob</td><td>文件模式匹配</td><td>是</td></tr>
+<tr><td>Grep</td><td>内容搜索</td><td>是</td></tr>
+<tr><td>WebFetch</td><td>抓取网页内容</td><td>是</td></tr>
+<tr><td>WebSearch</td><td>网络搜索</td><td>是</td></tr>
+<tr><td>TodoWrite</td><td>管理待办事项</td><td>是</td></tr>
+<tr><td>AgentTool</td><td>启动子代理</td><td>否</td></tr>
+<tr><td>NotebookEdit</td><td>编辑 Notebook</td><td>否</td></tr>
+<tr><td>AskUserQuestion</td><td>向用户提问</td><td>是</td></tr>
+<tr><td>SkillTool</td><td>加载技能内容</td><td>是</td></tr>
+</table>
+
+<h3>8.2 MCP 集成</h3>
+<pre>// MCP 工具命名: mcp__{serverName}__{toolName}
+// 自动读取 MCP 工具注解:
+isConcurrencySafe() → tool.annotations?.readOnlyHint ?? false
+isReadOnly()        → tool.annotations?.readOnlyHint ?? false
+isDestructive()     → tool.annotations?.destructiveHint ?? false</pre>
+
+<h3>8.3 工具执行编排</h3>
+<p><code>toolOrchestration.ts</code> 将工具调用分为安全/不安全批次：</p>
+<pre>runTools(toolUseMessages):
+  partition → [concurrencySafe, nonSafe]
+  ↓
+  safe → 并行执行（最多 10 个）
+  nonSafe → 串行执行
+  ↓
+  yield MessageUpdate（每个工具结果）</pre>
+
+</body>
+</html>
