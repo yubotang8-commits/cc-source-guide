@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>编排 / 子代理对比 — CC vs CX vs OX</title>
+<style>
+  :root { --cc: #d97706; --cx: #059669; --ox: #7c3aed; --bg: #fafafa; --border: #e0e0e0; --code-bg: #1e1e1e; --code-fg: #d4d4d4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: #1a1a1a; line-height: 1.7; max-width: 1040px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #555; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  h2 { font-size: 1.2rem; margin: 1.8rem 0 0.6rem; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 0.8rem; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.5rem 0; }
+  code { font-family: "Cascadia Code", "Fira Code", monospace; }
+  :not(pre) > code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f4; font-weight: 600; }
+  .cc { color: var(--cc); font-weight: 600; } .cx { color: var(--cx); font-weight: 600; } .ox { color: var(--ox); font-weight: 600; }
+  th.cc { background: #fffbeb; } th.cx { background: #ecfdf5; } th.ox { background: #f5f3ff; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.88rem; border-radius: 0 6px 6px 0; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>编排 / 子代理对比</h1>
+
+<h2>术语对照</h2>
+<table>
+<tr><th>概念</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr><td>子代理工具</td><td class="cc">AgentTool</td><td class="cx">multi_agents (V1) / V2 tools</td><td class="ox">task tool</td></tr>
+<tr><td>生成子代理</td><td class="cc">runAgent()</td><td class="cx">spawn_agent</td><td class="ox">sessions.create() + SessionPrompt</td></tr>
+<tr><td>等待子代理</td><td class="cc">同步: for await; 异步: lifecycle</td><td class="cx">wait_agent (timeout 30s)</td><td class="ox">同步: yield*; 异步: BackgroundJob</td></tr>
+<tr><td>子代理间通信</td><td class="cc">TeammateMailbox (文件 IPC)</td><td class="cx">send_message (V2: 加密)</td><td class="ox">— (结果注入父会话)</td></tr>
+<tr><td>多代理组</td><td class="cc">Team/Swarm</td><td class="cx">AgentGraphStore</td><td class="ox">—</td></tr>
+<tr><td>深度限制</td><td class="cc">—</td><td class="cx">agent_max_depth</td><td class="ox">subagent_depth (默认1)</td></tr>
+</table>
+
+<h2>子代理生成对比</h2>
+<table>
+<tr><th>维度</th><th class="cc">CC — AgentTool</th><th class="cx">CX — spawn_agent</th><th class="ox">OX — task tool</th></tr>
+<tr>
+  <td>生成方式</td>
+  <td>创建隔离 ToolUseContext<br>→ 运行独立 query() 循环</td>
+  <td>调用 AgentControl.spawn_agent()<br>→ 创建子 Thread</td>
+  <td>sessions.create(parentID)<br>→ 运行 SessionPrompt</td>
+</tr>
+<tr>
+  <td>权限继承</td>
+  <td>resolveAgentTools() 过滤<br>+ filterToolsForAgent()</td>
+  <td>继承父 turn config<br>+ layer 角色特定 config</td>
+  <td>deriveSubagentSessionPermission()<br>父 deny + 子代理规则 + 强制 deny</td>
+</tr>
+<tr>
+  <td>工具过滤</td>
+  <td>ALL_AGENT_DISALLOWED_TOOLS<br>CUSTOM_AGENT_DISALLOWED_TOOLS<br>ASYNC_AGENT_ALLOWED_TOOLS</td>
+  <td>build_agent_spawn_config()<br>模型/reasoning/审批/sandbox 覆盖</td>
+  <td>deny todowrite, deny 嵌套 task<br>按子代理类型限制工具</td>
+</tr>
+<tr>
+  <td>Fork 模式</td>
+  <td>✅ Fork Sub-agent<br>继承完整上下文 → 共享 prompt cache<br>每个子代理收不同 directive</td>
+  <td>✅ fork_turns: none/all/N<br>LastNTurns 或 FullHistory</td>
+  <td>❌ （子代理是新 session）</td>
+</tr>
+<tr>
+  <td>同步 vs 异步</td>
+  <td>同步: 共享 setAppState<br>异步: 隔离, 完成后通知</td>
+  <td>V2: spawn + wait 分离<br>可并行生成多个再等待</td>
+  <td>同步: yield* SessionPrompt<br>异步: BackgroundJob + 通知</td>
+</tr>
+</table>
+
+<h2>代码对比：生成子代理</h2>
+<pre>// CC — runAgent()
+const agentToolUseContext = createSubagentContext(toolUseContext, {
+  options: agentOptions, agentId, agentType,
+  shareSetAppState: !isAsync,  // 同步共享状态, 异步隔离
+})
+for await (const message of query({
+  messages: initialMessages,
+  systemPrompt: agentSystemPrompt,
+  canUseTool, toolUseContext: agentToolUseContext,
+  maxTurns: agentDefinition.maxTurns,
+})) { yield message }
+
+// CX — spawn_agent
+let child_depth = next_thread_spawn_depth(&session_source);
+if exceeds_thread_spawn_depth_limit(child_depth, max_depth) {
+    return Err("Agent depth limit reached. Solve the task yourself.")
+}
+session.services.agent_control.spawn_agent_with_metadata(
+    config, input_items, SpawnAgentOptions {
+        fork_parent_spawn_call_id,
+        fork_mode: SpawnAgentForkMode::FullHistory,
+        parent_thread_id: Some(session.thread_id),
+    }
+)
+
+// OX — task tool
+const nextSession = yield* sessions.create({
+  parentID: ctx.sessionID,
+  title: params.description + ` (@${next.name} subagent)`,
+  agent: next.name,
+  permission: [...childPermission, ...childToolDenies],
+})
+// 深度检查
+let depth = 0
+while (current.parentID) { depth++; current = yield* sessions.get(current.parentID) }
+if (depth &gt;= (cfg.subagent_depth ?? 1)) return Effect.fail("Subagent depth limit reached")</pre>
+
+<h2>内置子代理类型</h2>
+<table>
+<tr><th>子代理</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr><td>通用</td><td>General Purpose Agent</td><td>— (自定义)</td><td>general (mode: subagent)</td></tr>
+<tr><td>探索</td><td>Explore Agent (只读)</td><td>—</td><td>explore (只读: grep/glob/read)</td></tr>
+<tr><td>规划</td><td>Plan Agent (只读探索+规划)</td><td>—</td><td>— (Plan Agent 是 primary)</td></tr>
+<tr><td>验证</td><td>Verification Agent (feature-gated)</td><td>—</td><td>—</td></tr>
+<tr><td>压缩</td><td>—</td><td>—</td><td>compaction (hidden, primary)</td></tr>
+<tr><td>标题</td><td>—</td><td>—</td><td>title (hidden, primary)</td></tr>
+</table>
+
+<h2>多代理编排（Team/Swarm）</h2>
+<table>
+<tr><th>维度</th><th class="cc">CC — Team/Swarm</th><th class="cx">CX — AgentGraph</th><th class="ox">OX</th></tr>
+<tr>
+  <td>多代理组</td>
+  <td>Team 文件系统<br>~/.claude/teams/{name}/config.json<br>成员: lead + workers</td>
+  <td>AgentGraphStore<br>父子 Thread 关系图</td>
+  <td>❌ 无原生 team 支持</td>
+</tr>
+<tr>
+  <td>进程隔离</td>
+  <td>每个 teammate 独立 tmux pane<br>或 in-process 隔离</td>
+  <td>每个子代理独立 Thread/Session</td>
+  <td>每个子代理独立 Session</td>
+</tr>
+<tr>
+  <td>通信机制</td>
+  <td>TeammateMailbox (文件 IPC)<br>消息类型: idle, permission_request,<br>plan_approval, shutdown, task_assignment</td>
+  <td>send_message (V2: 加密)<br>InterAgentCommunication::new_encrypted()</td>
+  <td>结果注入父会话 synthetic message</td>
+</tr>
+<tr>
+  <td>权限委派</td>
+  <td>lead 审批 worker 的权限请求<br>(permission_request/response)</td>
+  <td>父 Thread 的 approval_policy 传递</td>
+  <td>父 deny 规则 + 子代理规则 合并</td>
+</tr>
+</table>
+
+<div class="note">
+  <strong>成熟度排序：</strong>CC &gt; CX &gt; OX。<br>
+  CC 的 Team/Swarm 系统最完整——文件 IPC、权限委派、计划审批、tmux 隔离、Fork 缓存共享。<br>
+  CX 的 V2 API 支持 Fork 模式（共享历史 N 轮）和加密通信，架构清晰。<br>
+  OX 最简单——仅通过 task 工具创建子 Session，无 team 概念，通信靠结果注入。
+</div>
+
+</body>
+</html>

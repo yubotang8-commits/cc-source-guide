@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Agent Loop 对比 — CC vs CX vs OX</title>
+<style>
+  :root { --cc: #d97706; --cx: #059669; --ox: #7c3aed; --bg: #fafafa; --border: #e0e0e0; --code-bg: #1e1e1e; --code-fg: #d4d4d4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: #1a1a1a; line-height: 1.7; max-width: 1040px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #555; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  h2 { font-size: 1.2rem; margin: 1.8rem 0 0.6rem; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 0.8rem; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.5rem 0; }
+  code { font-family: "Cascadia Code", "Fira Code", monospace; }
+  :not(pre) > code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f4; font-weight: 600; }
+  .cc { color: var(--cc); font-weight: 600; } .cx { color: var(--cx); font-weight: 600; } .ox { color: var(--ox); font-weight: 600; }
+  th.cc { background: #fffbeb; } th.cx { background: #ecfdf5; } th.ox { background: #f5f3ff; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.88rem; border-radius: 0 6px 6px 0; }
+  .flow { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin: 0.8rem 0; font-family: monospace; font-size: 0.82rem; white-space: pre; overflow-x: auto; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>Agent Loop 对比（正常退出与异常退出）</h1>
+
+<h2>术语对照</h2>
+<table>
+<tr><th>概念</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr><td>主循环函数</td><td class="cc">queryLoop()</td><td class="cx">run_turn()</td><td class="ox">SessionRunner.run()</td></tr>
+<tr><td>一轮 LLM 调用+工具执行</td><td class="cc">Turn</td><td class="cx">Turn (内含多 Step)</td><td class="ox">Step</td></tr>
+<tr><td>流式 LLM 调用</td><td class="cc">API streaming</td><td class="cx">run_sampling_request()</td><td class="ox">llm.stream()</td></tr>
+<tr><td>工具调用</td><td class="cc">ToolUse Block</td><td class="cx">ResponseItem (FunctionCall)</td><td class="ox">ToolCall Event</td></tr>
+<tr><td>用户中断</td><td class="cc">aborted_tools</td><td class="cx">CancellationToken</td><td class="ox">failInterruptedTools()</td></tr>
+</table>
+
+<h2>循环结构对比</h2>
+
+<h3>CC — while(true) 生成器</h3>
+<pre>async function* queryLoop(params) {
+  let state = { messages, toolUseContext, turnCount, ... }
+
+  while (true) {                         // 无限循环
+    // ① 流式调用 LLM API
+    // ② StreamingToolExecutor 边收边执行工具
+    // ③ 收集所有工具结果
+
+    if (!has_tool_use)   return 'completed'     // 正常：模型说完
+    if (user_aborted)    return 'aborted_tools'  // 异常：用户中断
+    if (hook_stopped)    return 'hook_stopped'   // 异常：Hook 阻止
+    if (max_turns)       return 'max_turns'      // 异常：上限
+    if (overflow)        return 'prompt_too_long' // 异常：溢出
+
+    // ④ 有工具结果 → 更新 state → continue
+    state = { messages: [...prev, ...toolResults], turnCount++ }
+  }
+}</pre>
+
+<h3>CX — loop + sampling_request</h3>
+<pre>fn run_turn() {
+    loop {
+        // ① 从 input_queue 获取输入
+        // ② 运行 hooks → 若阻止则 break
+        // ③ run_sampling_request() → 流式 LLM + 执行工具
+        let needs_follow_up = ...;         // 工具是否需要后续
+
+        // ④ Token 预算检查
+        let should_roll_over = needs_follow_up
+            && (new_context_window || token_limit_reached);
+
+        if should_roll_over { /* 新上下文窗口 */ }
+        else if needs_follow_up { continue }  // 继续循环
+        else { break }                        // 正常退出
+    }
+}
+
+fn try_run_sampling_request() {
+    loop {
+        let event = stream.next().await;
+        match event {
+            OutputItemDone(item) => handle_tool_call(item),
+            // ... 有工具调用 → needs_follow_up = true
+        }
+    }
+}</pre>
+
+<h3>OX — Effect 双层 while</h3>
+<pre>const run = Effect.fn(function* (input) {
+  while (shouldRun) {                      // 外层：队列处理
+    let step = 1
+    while (needsContinuation) {            // 内层：agent 循环
+      const result = yield* runTurn(sessionID, promotion, step)
+      needsContinuation = result.needsContinuation  // 工具调用→继续
+      step++
+      if (!needsContinuation)
+        needsContinuation = yield* hasPending("steer")
+    }
+    shouldRun = yield* hasPending("queue")
+  }
+})</pre>
+
+<h2>退出条件全表</h2>
+<table>
+<tr><th>退出类型</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr>
+  <td><strong>正常完成</strong></td>
+  <td>无 tool_use → <code>completed</code></td>
+  <td>模型无函数调用 → <code>break</code></td>
+  <td>needsContinuation=false 且无 steer/queue</td>
+</tr>
+<tr>
+  <td><strong>用户中断</strong></td>
+  <td><code>aborted_tools</code></td>
+  <td>CancellationToken 触发</td>
+  <td>failInterruptedTools()</td>
+</tr>
+<tr>
+  <td><strong>Hook 阻止</strong></td>
+  <td><code>hook_stopped</code></td>
+  <td>turn-stop hook 阻止</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td><strong>轮次/步数上限</strong></td>
+  <td><code>max_turns</code></td>
+  <td>—（无内建上限）</td>
+  <td>isLastStep → 禁用工具 + MAX_STEPS_PROMPT</td>
+</tr>
+<tr>
+  <td><strong>上下文溢出</strong></td>
+  <td><code>prompt_too_long</code><br>（compaction 后仍溢出）</td>
+  <td>token_limit_reached<br>→ auto-compact 或 roll_over</td>
+  <td>TurnTransitionError<br>→ compactAfterOverflow 后继续</td>
+</tr>
+<tr>
+  <td><strong>安全拒绝</strong></td>
+  <td>—</td>
+  <td>Guardian 连续3次拒绝</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td><strong>API 错误</strong></td>
+  <td><code>model_error</code></td>
+  <td>stream error / server 5xx</td>
+  <td>Effect 错误传播</td>
+</tr>
+</table>
+
+<h2>流式工具执行对比</h2>
+<table>
+<tr><th>维度</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr>
+  <td>LLM仍在输出时是否开始执行工具</td>
+  <td><strong>是</strong> — StreamingToolExecutor<br>收到完整 tool_use 就立即入队</td>
+  <td><strong>是</strong> — handle_output_item_done()<br>在流式事件中分发</td>
+  <td><strong>是</strong> — toolMaterialization.settle()<br>在每个 tool-call event 时执行</td>
+</tr>
+<tr>
+  <td>并发安全工具并行</td>
+  <td>是（最多10个）</td>
+  <td>是（FuturesOrdered）</td>
+  <td>是（FiberSet）</td>
+</tr>
+<tr>
+  <td>非安全工具串行</td>
+  <td>是</td>
+  <td>是（顺序处理）</td>
+  <td>是（settle 内部串行）</td>
+</tr>
+</table>
+
+<div class="note">
+  <strong>共同模式：</strong>三个 agent 都采用"while 循环 + 流式 LLM + 工具并行执行"的基本架构。区别在于：CC 用 async generator 可被外部消费；CX 是传统 loop + tokio 异步；OX 用 Effect-TS 函数式风格。
+</div>
+
+<h2>循环伪代码通用模式</h2>
+<div class="flow">所有三个 agent 的核心循环可抽象为:
+
+while (true) {
+  response = callLLM(messages)          // 流式调用
+  toolCalls = extractToolCalls(response) // 提取工具调用
+  if (toolCalls.length === 0) return     // 正常退出
+
+  results = executeTools(toolCalls)      // 并行/串行执行
+  messages.append(assistantMsg, results) // 拼入历史
+  // → 继续循环
+}
+
+异常退出: 中断 / Hook阻止 / 上限 / 溢出 / 错误</div>
+
+</body>
+</html>

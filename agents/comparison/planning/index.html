@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>规划 / 推理策略对比 — CC vs CX vs OX</title>
+<style>
+  :root { --cc: #d97706; --cx: #059669; --ox: #7c3aed; --bg: #fafafa; --border: #e0e0e0; --code-bg: #1e1e1e; --code-fg: #d4d4d4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: #1a1a1a; line-height: 1.7; max-width: 1040px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #555; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  h2 { font-size: 1.2rem; margin: 1.8rem 0 0.6rem; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 0.8rem; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.5rem 0; }
+  code { font-family: "Cascadia Code", "Fira Code", monospace; }
+  :not(pre) > code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f4; font-weight: 600; }
+  .cc { color: var(--cc); font-weight: 600; } .cx { color: var(--cx); font-weight: 600; } .ox { color: var(--ox); font-weight: 600; }
+  th.cc { background: #fffbeb; } th.cx { background: #ecfdf5; } th.ox { background: #f5f3ff; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.88rem; border-radius: 0 6px 6px 0; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>规划 / 推理策略对比</h1>
+
+<h2>术语对照</h2>
+<table>
+<tr><th>概念</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr><td>规划模式</td><td class="cc">Plan Mode (EnterPlanMode/ExitPlanMode)</td><td class="cx">ModeKind::Plan</td><td class="ox">Plan Agent (primary, deny edit)</td></tr>
+<tr><td>计划工具</td><td class="cc">Plan File (.md 持久化)</td><td class="cx">update_plan (checklist)</td><td class="ox">TodoWrite + .opencode/plans/</td></tr>
+<tr><td>代码执行模式</td><td class="cc">—</td><td class="cx">Code Mode (JS code cells)</td><td class="ox">—</td></tr>
+<tr><td>默认推理策略</td><td class="cc">隐式 ReAct</td><td class="cx">隐式 ReAct + update_plan</td><td class="ox">隐式 ReAct</td></tr>
+</table>
+
+<h2>规划模式对比</h2>
+<table>
+<tr><th>维度</th><th class="cc">CC — 显式 Plan-Execute</th><th class="cx">CX — ModeKind + update_plan</th><th class="ox">OX — Plan Agent</th></tr>
+<tr>
+  <td>进入规划</td>
+  <td>EnterPlanMode 工具<br>→ 切换为 <code>mode: 'plan'</code><br>→ 剥离写入工具</td>
+  <td>ModeKind::Plan<br>→ 限制可用工具集<br>→ update_plan 被禁用</td>
+  <td>切换到 Plan Agent<br>→ deny 所有 edit<br>→ 仅允许 .opencode/plans/*.md</td>
+</tr>
+<tr>
+  <td>计划输出</td>
+  <td>Plan 文件（Markdown）<br>持久化到磁盘，跨 session 恢复</td>
+  <td>update_plan checklist<br>步骤: { step, status: pending/in_progress/completed }</td>
+  <td>TodoWrite 工具<br>会话级待办事项列表</td>
+</tr>
+<tr>
+  <td>退出规划</td>
+  <td>ExitPlanMode 工具<br>→ 用户批准 → 恢复原模式<br>→ plan 内容返回给 agent</td>
+  <td>退出 Plan 模式<br>→ 恢复 ModeKind::Default</td>
+  <td>plan_exit 权限<br>→ 切回 build agent</td>
+</tr>
+<tr>
+  <td>规划子代理</td>
+  <td>内置 Plan Agent（只读探索）<br>+ V2 并行探索 (3 explore + 1-3 planner)</td>
+  <td>—</td>
+  <td>内置 explore 子代理（只读）</td>
+</tr>
+</table>
+
+<h2>代码对比：进入规划模式</h2>
+<pre>// CC — EnterPlanModeTool
+context.setAppState(prev =&gt; ({
+  ...prev,
+  toolPermissionContext: applyPermissionUpdate(
+    prepareContextForPlanMode(prev.toolPermissionContext),
+    { type: 'setMode', mode: 'plan', destination: 'session' },
+  ),
+}))
+
+// CX — Plan 模式禁用 update_plan (plan.rs)
+if turn.mode == ModeKind::Plan {
+    return Err("update_plan is not allowed in Plan mode")
+}
+
+// OX — Plan Agent 权限
+{ action: "edit", resource: "*", effect: "deny" },
+{ action: "edit", resource: ".opencode/plans/*.md", effect: "allow" },</pre>
+
+<h2>代码对比：计划工具</h2>
+<pre>// CC — Plan File 持久化
+function getPlanFilePath(agentId?) {
+  const slug = getPlanSlug(getSessionId())
+  return join(getPlansDirectory(), `${slug}.md`)
+}
+
+// CX — update_plan checklist
+PlanItem { step: String, status: "pending" | "in_progress" | "completed" }
+// At most one step can be in_progress at a time
+
+// OX — TodoWrite
+{ todos: [{ id, content, status: "pending"|"in_progress"|"completed", priority }] }</pre>
+
+<h2>推理策略对比</h2>
+<table>
+<tr><th>维度</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr>
+  <td>默认策略</td>
+  <td>隐式 ReAct（LLM 自主选择工具）</td>
+  <td>隐式 ReAct + 可选 update_plan checklist</td>
+  <td>隐式 ReAct + 可选 TodoWrite</td>
+</tr>
+<tr>
+  <td>显式规划</td>
+  <td>Plan Mode（工具级开关）</td>
+  <td>ModeKind::Plan + CodeMode</td>
+  <td>Plan Agent（代理级隔离）</td>
+</tr>
+<tr>
+  <td>代码执行模式</td>
+  <td>—</td>
+  <td>Code Mode: LLM 写 JS 代码单元<br>代码可调用嵌套工具</td>
+  <td>—</td>
+</tr>
+<tr>
+  <td>步骤限制</td>
+  <td>maxTurns 参数</td>
+  <td>—</td>
+  <td>agent.steps → MAX_STEPS_PROMPT<br>工具禁用 + 强制文本回复</td>
+</tr>
+</table>
+
+<div class="note">
+  <strong>设计哲学差异：</strong><br>
+  CC 最"显式"——Plan Mode 是独立权限模式，有专门的 Plan 子代理，Plan 文件跨会话持久化。<br>
+  CX 最"灵活"——ModeKind 枚举支持多种模式，Code Mode 允许 LLM 编写可执行代码。<br>
+  OX 最"简单"——Plan 就是另一个 Agent，通过权限 deny 实现只读，无独立模式切换机制。
+</div>
+
+</body>
+</html>

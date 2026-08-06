@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>状态管理对比 — CC vs CX vs OX</title>
+<style>
+  :root { --cc: #d97706; --cx: #059669; --ox: #7c3aed; --bg: #fafafa; --border: #e0e0e0; --code-bg: #1e1e1e; --code-fg: #d4d4d4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: #1a1a1a; line-height: 1.7; max-width: 1040px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #555; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  h2 { font-size: 1.2rem; margin: 1.8rem 0 0.6rem; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 0.8rem; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.5rem 0; }
+  code { font-family: "Cascadia Code", "Fira Code", monospace; }
+  :not(pre) > code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f4; font-weight: 600; }
+  .cc { color: var(--cc); font-weight: 600; } .cx { color: var(--cx); font-weight: 600; } .ox { color: var(--ox); font-weight: 600; }
+  th.cc { background: #fffbeb; } th.cx { background: #ecfdf5; } th.ox { background: #f5f3ff; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.88rem; border-radius: 0 6px 6px 0; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>状态管理对比</h1>
+
+<h2>架构总览</h2>
+<table>
+<tr><th>维度</th><th class="cc">CC — 双层全局</th><th class="cx">CX — 多库 SQLite</th><th class="ox">OX — 分布式 Effect</th></tr>
+<tr>
+  <td>核心模式</td>
+  <td>Bootstrap 单例 + React Store</td>
+  <td>SessionState (Mutex) + 4个 SQLite DB</td>
+  <td>Effect Service + SQLite (事件溯源)</td>
+</tr>
+<tr>
+  <td>持久化</td>
+  <td>JSONL 文件（Transcript）</td>
+  <td>4 个 SQLite DB + Rollout JSON</td>
+  <td>SQLite (Drizzle ORM) + 事件投影</td>
+</tr>
+<tr>
+  <td>内存状态</td>
+  <td>Bootstrap state (进程级模块变量)<br>AppState (React immutable store)</td>
+  <td>SessionState (Arc&lt;Mutex&lt;_&gt;&gt;)<br>TurnState (per-turn)</td>
+  <td>Effect Service 实例<br>Immer MessageUpdater</td>
+</tr>
+<tr>
+  <td>状态共享</td>
+  <td>React Context + 回调<br>toolUseContext 传递</td>
+  <td>Arc 引用 + watch channel<br>SessionServices 注入</td>
+  <td>Effect Layer 依赖注入<br>Service 接口</td>
+</tr>
+<tr>
+  <td>会话状态机</td>
+  <td>idle → running → requires_action → idle</td>
+  <td>AgentStatus: Idle/Running/WaitingForApproval</td>
+  <td>SessionExecution 管理活跃集合</td>
+</tr>
+</table>
+
+<h2>代码对比</h2>
+
+<h3>CC — Bootstrap + React</h3>
+<pre>// 进程级单例（模块变量）
+type State = {
+  sessionId, totalCostUSD, modelUsage,
+  systemPromptSectionCache, scheduledTasks, plugins, ...
+}
+// 警告注释："DO NOT ADD MORE STATE HERE - BE JUDICIOUS"
+
+// React Store
+type AppState = {
+  settings, mainLoopModel, toolPermissionContext,
+  mcp: { clients, tools, commands },
+  plugins, todos, fileHistory, tasks, ...
+}
+// 通过 useSyncExternalStore 访问</pre>
+
+<h3>CX — Rust Mutex + SQLite</h3>
+<pre>struct SessionState {
+    session_configuration: SessionConfiguration,
+    history: ContextManager,
+    auto_compact_window: AutoCompactWindow,
+    additional_context: AdditionalContextStore,
+    granted_permissions: HashMap&lt;String, AdditionalPermissionProfile&gt;,
+}
+
+// 4 个 SQLite 数据库
+struct StateRuntime {
+    sqlite: SqliteConfig,
+    pool: Arc&lt;SqlitePool&gt;,           // 主状态 DB
+    logs_pool: Arc&lt;SqlitePool&gt;,      // 审计日志
+    thread_goals: GoalStore,          // 目标
+    memories: MemoryStore,            // 记忆任务
+}</pre>
+
+<h3>OX — Effect Service</h3>
+<pre>// 分布式服务层，无中央状态对象
+SessionExecution — 进程全局协调 (active/resume/wake/interrupt)
+SessionRunner    — agent 循环
+SessionStore     — 数据读取
+SessionProjector — 事件→SQL 投影
+MessageUpdater   — 内存消息 (Immer 不可变)
+
+// 通过 Effect Layer 注入依赖
+const AppLayer = Layer.mergeAll(
+  Database.layer, SessionExecution.layer,
+  SessionRunner.layer, ToolRegistry.layer, ...
+)</pre>
+
+<h2>状态恢复对比</h2>
+<table>
+<tr><th>维度</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr>
+  <td>恢复方式</td>
+  <td>读取 JSONL → 反序列化 → restoreSessionStateFromLog()</td>
+  <td>ThreadStore.load_history() → 重建上下文</td>
+  <td>SQL 查询 + Context Epoch 比对 → delta 恢复</td>
+</tr>
+<tr>
+  <td>恢复粒度</td>
+  <td>全量（读所有 JSONL 行）</td>
+  <td>全量或分页（ThreadHistoryMode）</td>
+  <td>按需（从最新 compaction 点开始）</td>
+</tr>
+<tr>
+  <td>增量更新</td>
+  <td>无（每次重建）</td>
+  <td>AdditionalContextStore.merge() — 只发变化的</td>
+  <td>SystemContext.reconcile() — 只发 delta</td>
+</tr>
+</table>
+
+<div class="note">
+  <strong>关键差异：</strong>CX 最"重"（4个 SQLite DB），CC 最"轻"（JSONL 文件），OX 最"结构化"（事件溯源+投影）。CX 的 Rust Mutex 保证线程安全但增加复杂度，OX 的 Effect 依赖注入天然支持测试和替换。
+</div>
+
+</body>
+</html>

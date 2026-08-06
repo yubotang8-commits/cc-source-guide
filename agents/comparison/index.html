@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>跨 Agent 维度对比索引 — CC vs CX vs OX</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: #fafafa; color: #1a1a1a; line-height: 1.7; max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #555; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  h2 { font-size: 1.15rem; margin: 1.5rem 0 0.6rem; color: #374151; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.3rem; margin: 0.6rem 0; transition: box-shadow 0.2s; }
+  .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .card h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+  .card h3 a { color: #1a1a1a; text-decoration: none; }
+  .card h3 a:hover { color: #2563eb; }
+  .card p { color: #6b7280; font-size: 0.88rem; }
+  .num { display: inline-block; width: 1.6rem; height: 1.6rem; line-height: 1.6rem; text-align: center; border-radius: 50%; background: #374151; color: #fff; font-size: 0.82rem; font-weight: 600; margin-right: 0.4rem; vertical-align: middle; }
+  .tag { margin-left: 0.3rem; }
+  .cc { color: #d97706; font-weight: 600; } .cx { color: #059669; font-weight: 600; } .ox { color: #7c3aed; font-weight: 600; }
+  .back { display: inline-block; margin-bottom: 1.5rem; color: #2563eb; text-decoration: none; font-size: 0.9rem; }
+  .back:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<a class="back" href="../index.html">← 返回总索引</a>
+
+<h1>跨 Agent 维度对比</h1>
+<p style="color:#6b7280;margin-bottom:1rem;">9 个维度深度对比 <span class="cc">Claude Code</span> / <span class="cx">Codex</span> / <span class="ox">OpenCode</span></p>
+
+<h2>基础架构</h2>
+
+<div class="card">
+  <h3><a href="context-management/index.html"><span class="num">1</span>上下文管理（会话管理与持久化）</a></h3>
+  <p><span class="cc">CC</span>=JSONL | <span class="cx">CX</span>=ThreadStore trait | <span class="ox">OX</span>=SQLite+事件溯源 | Compaction 三级 vs 单级 vs 按需</p>
+</div>
+
+<div class="card">
+  <h3><a href="memory/index.html"><span class="num">2</span>记忆机制</a></h3>
+  <p><span class="cc">CC</span>=CLAUDE.md 4层+自动提取 | <span class="cx">CX</span>=2阶段AI管线(Phase1→Phase2) | <span class="ox">OX</span>=配置驱动(无专门记忆)</p>
+</div>
+
+<div class="card">
+  <h3><a href="agent-loop/index.html"><span class="num">3</span>Agent Loop（正常退出与异常退出）</a></h3>
+  <p>共同模式: while+流式+工具并行 | <span class="cc">CC</span>=async generator | <span class="cx">CX</span>=loop+tokio | <span class="ox">OX</span>=Effect双层while | 6种退出条件对比</p>
+</div>
+
+<div class="card">
+  <h3><a href="prompt-management/index.html"><span class="num">4</span>提示词管理</a></h3>
+  <p><span class="cc">CC</span>=Section缓存架构 | <span class="cx">CX</span>=编译时嵌入(include_str!) | <span class="ox">OX</span>=Source代数组合+增量更新</p>
+</div>
+
+<div class="card">
+  <h3><a href="state-management/index.html"><span class="num">5</span>状态管理</a></h3>
+  <p><span class="cc">CC</span>=双层全局(Bootstrap+React) | <span class="cx">CX</span>=4库SQLite+Mutex | <span class="ox">OX</span>=分布式Effect Service</p>
+</div>
+
+<h2>安全与工具</h2>
+
+<div class="card">
+  <h3><a href="security/index.html"><span class="num">6</span>安全机制</a></h3>
+  <p>安全成熟度: <span class="cx">CX</span>(沙箱+Guardian+Hook) &gt; <span class="cc">CC</span>(Classifier+沙箱) &gt;&gt; <span class="ox">OX</span>(路径隔离+三值权限)</p>
+</div>
+
+<div class="card">
+  <h3><a href="tool-usage/index.html"><span class="num">7</span>工具使用 (Skill, MCP, 内置命令)</a></h3>
+  <p><span class="cc">CC</span>=13+内置+MCP+Skill+Plugin | <span class="cx">CX</span>=Handler+ToolOrchestrator | <span class="ox">OX</span>=双层注册+Effect Schema</p>
+</div>
+
+<h2>高级能力</h2>
+
+<div class="card">
+  <h3><a href="planning/index.html"><span class="num">8</span>规划 / 推理策略</a></h3>
+  <p><span class="cc">CC</span>=显式Plan-Execute(Plan Mode+子代理) | <span class="cx">CX</span>=ModeKind+update_plan+CodeMode | <span class="ox">OX</span>=Plan Agent(权限deny隔离)</p>
+</div>
+
+<div class="card">
+  <h3><a href="orchestration/index.html"><span class="num">9</span>编排 / 子代理</a></h3>
+  <p><span class="cc">CC</span>=AgentTool+Team/Swarm(文件IPC) | <span class="cx">CX</span>=spawn_agent V1/V2(Fork+加密通信) | <span class="ox">OX</span>=task工具(子Session)</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>记忆机制对比 — CC vs CX vs OX</title>
+<style>
+  :root { --cc: #d97706; --cx: #059669; --ox: #7c3aed; --bg: #fafafa; --border: #e0e0e0; --code-bg: #1e1e1e; --code-fg: #d4d4d4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: #1a1a1a; line-height: 1.7; max-width: 1040px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #555; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  h2 { font-size: 1.2rem; margin: 1.8rem 0 0.6rem; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 0.8rem; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.5rem 0; }
+  code { font-family: "Cascadia Code", "Fira Code", monospace; }
+  :not(pre) > code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f4; font-weight: 600; }
+  .cc { color: var(--cc); font-weight: 600; } .cx { color: var(--cx); font-weight: 600; } .ox { color: var(--ox); font-weight: 600; }
+  th.cc { background: #fffbeb; } th.cx { background: #ecfdf5; } th.ox { background: #f5f3ff; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.88rem; border-radius: 0 6px 6px 0; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>记忆机制对比</h1>
+
+<h2>术语对照</h2>
+<table>
+<tr><th>概念</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr><td>项目指令文件</td><td class="cc">CLAUDE.md</td><td class="cx">AGENTS.md / CODEX.md</td><td class="ox">opencode.json (instructions)</td></tr>
+<tr><td>自动记忆提取</td><td class="cc">Session Memory</td><td class="cx">Memories Phase 1+2</td><td class="ox">—</td></tr>
+<tr><td>用户偏好持久化</td><td class="cc">~/.claude/CLAUDE.md</td><td class="cx">$CODEX_HOME/memories/</td><td class="ox">opencode.json + SQLite</td></tr>
+</table>
+
+<h2>全景对比</h2>
+<table>
+<tr><th>维度</th><th class="cc">Claude Code</th><th class="cx">Codex</th><th class="ox">OpenCode</th></tr>
+<tr>
+  <td><strong>跨会话记忆</strong></td>
+  <td>CLAUDE.md 四层体系 + Session Memory 自动提取</td>
+  <td>两阶段 AI 记忆管线 (Phase 1: rollout→raw, Phase 2: raw→consolidated)</td>
+  <td>无专门记忆系统；通过配置和 compaction summary 间接实现</td>
+</tr>
+<tr>
+  <td><strong>项目指令</strong></td>
+  <td>CLAUDE.md 层次体系<br>4级: 全局管理 &lt; 用户 &lt; 项目 &lt; 本地<br>支持 @include 嵌入</td>
+  <td>AGENTS.md 文件<br>由 AgentsMdManager 管理<br>加载到 prompt 中</td>
+  <td>opencode.json 中的 instructions 字段<br>支持路径和 URL</td>
+</tr>
+<tr>
+  <td><strong>自动记忆提取</strong></td>
+  <td>后台 forked subagent 定期提取对话笔记<br>触发条件: 10K tokens 启动，5K/3次更新</td>
+  <td>启动时 Phase 1: 从历史 rollout AI 提取<br>Phase 2: 启动受限 agent 合并<br>结果: $CODEX_HOME/memories/MEMORY.md</td>
+  <td>无</td>
+</tr>
+<tr>
+  <td><strong>会话内记忆</strong></td>
+  <td>Compaction summary 保留关键信息<br>恢复最近5个编辑文件</td>
+  <td>Auto-Compact 保留最近 20K tokens user messages + 摘要</td>
+  <td>Compaction Summary (结构化 Markdown)<br>Session Context Epoch 比对</td>
+</tr>
+<tr>
+  <td><strong>记忆引用</strong></td>
+  <td>—</td>
+  <td>Citation 系统: path:line_start-line_end|note=[desc]</td>
+  <td>—</td>
+</tr>
+</table>
+
+<h2>CC 记忆系统详解</h2>
+<pre>// 四层 CLAUDE.md
+1. /etc/claude-code/CLAUDE.md          ← 全局管理（最低优先级）
+2. ~/.claude/CLAUDE.md                 ← 用户个人
+3. CLAUDE.md / .claude/rules/*.md      ← 项目（可提交）
+4. CLAUDE.local.md                     ← 本地（不提交）
+
+// 自动 Session Memory
+DEFAULT_SESSION_MEMORY_CONFIG = {
+  minimumMessageTokensToInit: 10000,   // 10K tokens 后启动
+  minimumTokensBetweenUpdate: 5000,    // 每 5K 增量更新
+  toolCallsBetweenUpdates: 3,          // 或每 3 次工具调用
+}
+// 子代理只被允许编辑记忆文件</pre>
+
+<h2>CX 记忆系统详解</h2>
+<pre>// Phase 1: 从 rollout 提取
+StageOneOutput {
+  raw_memory: String,        // 详细 markdown 记忆
+  rollout_summary: String,   // 紧凑摘要
+  rollout_slug: String,      // 文件名 slug
+}
+
+// Phase 2: 合并（最复杂）
+→ 获取全局 Phase 2 锁（互斥）
+→ 准备 git 仓库作为记忆工作区
+→ 启动受限 agent:
+    ephemeral = true               // 不持久化
+    memories.generate = false      // 不递归
+    permissions.approval = Never   // 无需审批
+    features: 禁用 Collab, MemoryTool
+    sandbox: 仅工作区写入，无网络
+→ agent 处理 → 验证 → git commit baseline
+
+// 输出文件
+$CODEX_HOME/memories/MEMORY.md          ← 最终合并记忆
+$CODEX_HOME/memories/memory_summary.md  ← 摘要
+$CODEX_HOME/memories/raw_memories.md    ← Phase 1 原始输出</pre>
+
+<div class="note">
+  <strong>关键差异：</strong>CX 的记忆系统最复杂——它用一个受限 agent 来"整理记忆"，而不是简单的规则匹配。这种设计允许记忆以更智能的方式被合并、去重和重组。
+</div>
+
+<h2>三个系统的记忆"哲学"对比</h2>
+<table>
+<tr><th>哲学</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr>
+  <td>核心理念</td>
+  <td>用户显式编写 + AI 自动提取</td>
+  <td>AI 自主从历史中学习和积累</td>
+  <td>配置驱动，无自主记忆</td>
+</tr>
+<tr>
+  <td>类比</td>
+  <td>笔记本 + 助手自动做笔记</td>
+  <td>实习生从每次任务中学习和总结</td>
+  <td>工具箱里的说明书</td>
+</tr>
+<tr>
+  <td>持久化方式</td>
+  <td>Markdown 文件（人类可读可编辑）</td>
+  <td>SQLite + Git 仓库（AI 管理）</td>
+  <td>JSON 配置 + SQLite（结构化）</td>
+</tr>
+</table>
+
+</body>
+</html>

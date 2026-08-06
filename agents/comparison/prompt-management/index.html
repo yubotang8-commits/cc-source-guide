@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>提示词管理对比 — CC vs CX vs OX</title>
+<style>
+  :root { --cc: #d97706; --cx: #059669; --ox: #7c3aed; --bg: #fafafa; --border: #e0e0e0; --code-bg: #1e1e1e; --code-fg: #d4d4d4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: #1a1a1a; line-height: 1.7; max-width: 1040px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #555; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  h2 { font-size: 1.2rem; margin: 1.8rem 0 0.6rem; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 0.8rem; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.5rem 0; }
+  code { font-family: "Cascadia Code", "Fira Code", monospace; }
+  :not(pre) > code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f4; font-weight: 600; }
+  .cc { color: var(--cc); font-weight: 600; } .cx { color: var(--cx); font-weight: 600; } .ox { color: var(--ox); font-weight: 600; }
+  th.cc { background: #fffbeb; } th.cx { background: #ecfdf5; } th.ox { background: #f5f3ff; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.88rem; border-radius: 0 6px 6px 0; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>提示词管理对比</h1>
+
+<h2>术语对照</h2>
+<table>
+<tr><th>概念</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr><td>系统提示词</td><td class="cc">System Prompt (Sections)</td><td class="cx">BaseInstructions</td><td class="ox">SystemContext</td></tr>
+<tr><td>提示词片段</td><td class="cc">systemPromptSection</td><td class="cx">include_str!() 模板</td><td class="ox">Source&lt;A&gt;</td></tr>
+<tr><td>动态部分</td><td class="cc">DANGEROUS_uncachedSystemPromptSection</td><td class="cx">—</td><td class="ox">Source.update()</td></tr>
+<tr><td>缓存策略</td><td class="cc">缓存直到 /clear 或 /compact</td><td class="cx">编译时嵌入</td><td class="ox">Context Epoch 比对</td></tr>
+</table>
+
+<h2>架构对比</h2>
+<table>
+<tr><th>维度</th><th class="cc">CC — Section 架构</th><th class="cx">CX — 编译嵌入</th><th class="ox">OX — 代数组合</th></tr>
+<tr>
+  <td>组装方式</td>
+  <td>命名的 Section 列表，每个 Section 有 compute 函数。<br>按优先级排列，支持缓存。</td>
+  <td>Rust <code>include_str!()</code> 编译时嵌入 Markdown 模板。<br>运行时组装为 Prompt struct。</td>
+  <td>Effect-TS Source 接口。<br>每个 Source 有 key、load、baseline、update。<br>combine() 合并多个 Source。</td>
+</tr>
+<tr>
+  <td>缓存机制</td>
+  <td>缓存 section → /clear 或 /compact 时失效<br>volatile section → 每轮重新计算</td>
+  <td>无显式缓存（编译时嵌入即常量）<br>运行时 Prompt struct 按需构建</td>
+  <td>Context Epoch: 存储 snapshot JSON<br>恢复时 reconcile → 仅发送 delta</td>
+</tr>
+<tr>
+  <td>动态内容</td>
+  <td>mcp_instructions 是 volatile<br>（MCP 服务器可能变化）</td>
+  <td>模板中插入运行时变量<br>（session context 等）</td>
+  <td>每个 Source.load() 可动态获取<br>update() 生成增量文本</td>
+</tr>
+<tr>
+  <td>工具描述注入</td>
+  <td>通过 getSessionSpecificGuidanceSection()<br>根据 enabled tools 组装</td>
+  <td>build_tool_router() → model_visible_specs<br>工具定义作为 API 参数独立传入</td>
+  <td>toolMaterialization.definitions<br>作为 LLM request 的 tools 参数</td>
+</tr>
+</table>
+
+<h2>代码对比：系统提示词组装</h2>
+
+<pre>// CC — Section 架构
+const dynamicSections = [
+  systemPromptSection('session_guidance', () =&gt; ...),
+  systemPromptSection('memory', () =&gt; loadMemoryPrompt()),
+  systemPromptSection('env_info_simple', () =&gt; ...),
+  DANGEROUS_uncachedSystemPromptSection('mcp_instructions', () =&gt; ...),
+  systemPromptSection('scratchpad', ...),
+  systemPromptSection('token_budget', ...),
+]
+
+// CX — 编译嵌入
+let prompt = Prompt {
+    input: turn_input,
+    base_instructions: sess.get_base_instructions().await,
+    ..Default::default()
+};
+// base_instructions 包含编译时嵌入的核心提示词
+
+// OX — Source 代数
+const context = SystemContext.combine([
+  SystemContext.make({
+    key: "core/environment",
+    load: Effect.succeed(environment),
+    baseline: (env) =&gt; ["环境信息:", env].join("\n"),
+    update: (prev, curr) =&gt; `环境变更: ...`,
+  }),
+  SystemContext.make({
+    key: "core/date",
+    load: DateTime.nowAsDate,
+    baseline: (date) =&gt; `今天的日期: ${date}`,
+  }),
+])
+// 组装: system = [agent.system, systemContext.baseline]</pre>
+
+<h2>提示词覆盖优先级</h2>
+<table>
+<tr><th class="cc">CC 优先级</th><th class="cx">CX 优先级</th><th class="ox">OX 优先级</th></tr>
+<tr><td>0. Override（替换所有）</td><td>1. BaseInstructions（固定）</td><td>1. Agent system text</td></tr>
+<tr><td>1. Coordinator prompt</td><td>2. Compact summary（压缩摘要）</td><td>2. SystemContext.baseline</td></tr>
+<tr><td>2. Agent prompt</td><td>3. Tool instructions</td><td></td></tr>
+<tr><td>3. Custom prompt (--system-prompt)</td><td></td><td></td></tr>
+<tr><td>4. Default prompt</td><td></td><td></td></tr>
+<tr><td>+ appendSystemPrompt</td><td></td><td></td></tr>
+</table>
+
+<div class="note">
+  <strong>设计哲学差异：</strong>CC 最灵活（可任意覆盖），CX 最简单（编译时固定+运行时变量），OX 最结构化（代数组合+增量更新）。CC 的 Section 架构适合快速迭代，CX 的编译嵌入适合性能，OX 的 Source 接口适合插件化扩展。
+</div>
+
+</body>
+</html>

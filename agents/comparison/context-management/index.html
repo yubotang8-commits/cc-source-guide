@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>上下文管理对比 — CC vs CX vs OX</title>
+<style>
+  :root { --cc: #d97706; --cx: #059669; --ox: #7c3aed; --bg: #fafafa; --border: #e0e0e0; --code-bg: #1e1e1e; --code-fg: #d4d4d4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: #1a1a1a; line-height: 1.7; max-width: 1040px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.6rem; border-bottom: 3px solid #555; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+  h2 { font-size: 1.2rem; margin: 1.8rem 0 0.6rem; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 0.8rem; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.5rem 0; }
+  code { font-family: "Cascadia Code", "Fira Code", monospace; }
+  :not(pre) > code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f5f5f4; font-weight: 600; }
+  .cc { color: var(--cc); font-weight: 600; }
+  .cx { color: var(--cx); font-weight: 600; }
+  .ox { color: var(--ox); font-weight: 600; }
+  th.cc { background: #fffbeb; }
+  th.cx { background: #ecfdf5; }
+  th.ox { background: #f5f3ff; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.88rem; border-radius: 0 6px 6px 0; }
+  .flow { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin: 0.8rem 0; font-family: monospace; font-size: 0.82rem; white-space: pre; overflow-x: auto; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>上下文管理（会话管理与持久化）</h1>
+
+<h2>术语对照</h2>
+<table>
+<tr><th>概念</th><th class="cc">CC</th><th class="cx">CX</th><th class="ox">OX</th></tr>
+<tr><td>一次对话</td><td class="cc">Session</td><td class="cx">Thread</td><td class="ox">Session</td></tr>
+<tr><td>对话历史记录</td><td class="cc">Transcript</td><td class="cx">Rollout</td><td class="ox">History</td></tr>
+<tr><td>上下文压缩</td><td class="cc">Compact</td><td class="cx">Auto-Compact</td><td class="ox">Compaction</td></tr>
+<tr><td>压缩后摘要</td><td class="cc">Compaction Result</td><td class="cx">Compacted History</td><td class="ox">Compaction Summary</td></tr>
+</table>
+
+<div class="note">
+  <strong>核心区别：</strong>CC 用 <code>Transcript</code>（JSONL 文本文件），CX 用 <code>Rollout</code>（ThreadStore trait + JSON），OX 用 <code>History</code>（SQLite 数据库）。Transcript 和 Rollout 都是文件存储，OX 是数据库驱动。
+</div>
+
+<h2>存储方式对比</h2>
+<table>
+<tr><th>维度</th><th class="cc">Claude Code</th><th class="cx">Codex</th><th class="ox">OpenCode</th></tr>
+<tr>
+  <td>存储格式</td>
+  <td><strong>JSONL</strong>（每行一个 JSON 对象）<br><code>~/.claude/projects/{hash}/{id}.jsonl</code></td>
+  <td><strong>ThreadStore trait</strong>（抽象层）<br>默认实现: JSON 文件<br>可替换为任意后端</td>
+  <td><strong>SQLite</strong>（Drizzle ORM）<br><code>~/.opencode/opencode.db</code></td>
+</tr>
+<tr>
+  <td>追加写入</td>
+  <td>直接 append JSONL 行<br>简单但无事务保证</td>
+  <td><code>append_items()</code><br>通过 ThreadStore trait 抽象</td>
+  <td>事件溯源 → SessionProjector<br>EventV2 → SQL INSERT</td>
+</tr>
+<tr>
+  <td>读取历史</td>
+  <td><code>readTranscriptForLoad()</code><br>逐行解析 JSONL</td>
+  <td><code>load_history()</code><br>ThreadStore 加载 StoredThreadHistory</td>
+  <td>SQL 查询 session_message 表<br>从最新 compaction 点开始</td>
+</tr>
+<tr>
+  <td>恢复会话</td>
+  <td>读取 JSONL → 反序列化 → 恢复 AppState<br><code>restoreSessionStateFromLog()</code></td>
+  <td><code>resume_thread()</code><br>通过 ThreadStore 重建上下文</td>
+  <td>SessionExecution.resume()<br>SQLite 查询 + Context Epoch 比对</td>
+</tr>
+<tr>
+  <td>元数据存储</td>
+  <td>JSONL 内嵌(cwd, userType, timestamp...)</td>
+  <td>ThreadStore + State DB (SQLite)</td>
+  <td>SQLite (session 表 + 关联表)</td>
+</tr>
+</table>
+
+<h2>Compaction 策略对比</h2>
+<table>
+<tr><th>维度</th><th class="cc">CC — 三级策略</th><th class="cx">CX — 单级 + 滚动窗口</th><th class="ox">OX — 按需压缩</th></tr>
+<tr>
+  <td>触发条件</td>
+  <td>用户 /compact 命令或自动触发</td>
+  <td>token_limit_reached 或用户请求<br>AutoCompactWindow 追踪</td>
+  <td>compactIfNeeded(): 估算 tokens &gt; context - buffer</td>
+</tr>
+<tr>
+  <td>压缩方式</td>
+  <td>三级降级：<br>① Session Memory (轻量)<br>② Reactive (增量)<br>③ Traditional (forked agent 全量摘要)</td>
+  <td>单级：<br>向模型发送 SUMMARIZATION_PROMPT<br>→ 保留最近 20K tokens 的 user messages + 摘要</td>
+  <td>单级：<br>LLM 生成结构化 Markdown 摘要<br>格式: Objective / Work State / Next Move</td>
+</tr>
+<tr>
+  <td>压缩后恢复</td>
+  <td>恢复最近 5 个编辑文件 + 已调用 skill 到上下文<br>(POST_COMPACT_TOKEN_BUDGET = 50K)</td>
+  <td>replace_compacted_history() 完全替换</td>
+  <td>发出 Compaction.Ended 事件<br>→ 持久化为 compaction-type 消息</td>
+</tr>
+<tr>
+  <td>上下文窗口滚动</td>
+  <td>—</td>
+  <td>should_roll_over: needs_follow_up && (new_context_window || token_limit)<br>可在不压缩的情况下开新窗口</td>
+  <td>TurnTransitionError.OverflowCompaction<br>→ 压缩后继续</td>
+</tr>
+</table>
+
+<h2>代码片段对比：压缩入口</h2>
+
+<pre>// CC — compact.ts
+if (!customInstructions) {
+  const sessionMemoryResult = await trySessionMemoryCompaction(messages, agentId)
+  if (sessionMemoryResult) return { type: 'compact', compactionResult: sessionMemoryResult }
+}
+const microcompactResult = await microcompactMessages(messages, context)
+const result = await compactConversation(messagesForCompact, context, ...)
+
+// CX — compact.rs (Rust)
+let summary_text = format!("{SUMMARY_PREFIX}\n{summary_suffix}");
+let user_messages = collect_user_messages(history_items);
+// ... 发送 SUMMARIZATION_PROMPT 给模型
+// ... 保留最近 20K tokens 的 user messages
+sess.replace_compacted_history(compacted)
+
+// OX — compaction.ts (Effect-TS)
+const compactIfNeeded = Effect.fn(function* (input) {
+  if (estimate(tokens) &lt;= context - buffer) return false
+  return yield* compactAfterOverflow(input)
+})</pre>
+
+<h2>关键设计差异</h2>
+
+<table>
+<tr><th>差异点</th><th>说明</th></tr>
+<tr>
+  <td>CC 的 JSONL vs CX 的 ThreadStore trait</td>
+  <td>CC 直接写文件，简单但不可扩展；CX 通过 trait 抽象，支持任意后端（文件/数据库/S3）</td>
+</tr>
+<tr>
+  <td>OX 的事件溯源</td>
+  <td>OX 唯一使用事件溯源模式——所有变更先发 EventV2，再由 Projector 更新 SQL。其他两个直接操作存储</td>
+</tr>
+<tr>
+  <td>CC 的三级 Compaction</td>
+  <td>CC 有最复杂的压缩策略，包括后台 session memory 自动提取，这在其他两个中没有</td>
+</tr>
+<tr>
+  <td>CX 的上下文窗口滚动</td>
+  <td>CX 独有的 roll_over 机制：可以不压缩就开新窗口，相当于"翻页"</td>
+</tr>
+</table>
+
+</body>
+</html>
