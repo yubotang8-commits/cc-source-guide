@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>OpenCode (OX) 架构报告</title>
+<style>
+  :root { --bg: #fafafa; --border: #e0e0e0; --accent: #7c3aed; --tag: #ede9fe; --code-bg: #1e1e1e; --code-fg: #d4d4d4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: #1a1a1a; line-height: 1.7; max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.8rem; margin-bottom: 0.3rem; border-bottom: 3px solid var(--accent); padding-bottom: 0.5rem; }
+  h2 { font-size: 1.3rem; margin: 2rem 0 0.8rem; color: #5b21b6; border-left: 4px solid var(--accent); padding-left: 0.6rem; }
+  h3 { font-size: 1.05rem; margin: 1.2rem 0 0.4rem; color: #4c1d95; }
+  .subtitle { color: #666; font-size: 0.95rem; margin-bottom: 2rem; }
+  .meta { display: inline-block; background: var(--tag); padding: 2px 10px; border-radius: 4px; font-size: 0.82rem; margin: 0 4px 4px 0; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.6rem 0; }
+  code { font-family: "Cascadia Code", "Fira Code", monospace; }
+  :not(pre) > code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+  th { background: #f5f3ff; font-weight: 600; }
+  .flow { background: #f5f3ff; border: 1px solid #c4b5fd; border-radius: 6px; padding: 1rem; margin: 0.8rem 0; font-family: monospace; font-size: 0.85rem; white-space: pre; overflow-x: auto; }
+  .term { color: var(--accent); font-weight: 600; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.9rem; border-radius: 0 6px 6px 0; }
+  .ts-hint { background: #fefce8; border-left: 3px solid #ca8a04; padding: 0.5rem 1rem; margin: 0.6rem 0; font-size: 0.88rem; border-radius: 0 6px 6px 0; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>OpenCode (OX) 架构报告</h1>
+<p class="subtitle">TypeScript Monorepo (Effect 生态) | anomalyco/opencode | 193K stars | 6,422 文件</p>
+<span class="meta">TypeScript</span><span class="meta">Effect-TS</span><span class="meta">Drizzle ORM</span><span class="meta">SQLite</span><span class="meta">Monorepo</span>
+
+<div class="ts-hint">
+  <strong>Effect-TS 提示：</strong> OpenCode 大量使用 Effect-TS 库。<code>Effect.gen(function* () { ... })</code> 类似 async/await 但更强大——支持组合、错误处理和依赖注入。<code>yield*</code> 相当于 <code>await</code>。<code>Layer</code> 是依赖提供层，<code>Service</code> 是服务接口。
+</div>
+
+<h2>1. 术语映射</h2>
+<table>
+<tr><th>概念</th><th>OX 术语</th><th>CC 对应</th><th>CX 对应</th></tr>
+<tr><td>一次对话</td><td class="term">Session</td><td>Session</td><td>Thread</td></tr>
+<tr><td>对话历史</td><td class="term">History</td><td>Transcript</td><td>Rollout</td></tr>
+<tr><td>一次循环</td><td class="term">Step</td><td>Turn</td><td>Turn</td></tr>
+<tr><td>工具注册</td><td class="term">ToolRegistry</td><td>tools.ts</td><td>ToolRouter</td></tr>
+<tr><td>工具执行</td><td class="term">Settlement</td><td>ToolResult</td><td>AnyToolResult</td></tr>
+<tr><td>权限系统</td><td class="term">PermissionV2</td><td>canUseTool</td><td>AskForApproval</td></tr>
+<tr><td>上下文压缩</td><td class="term">Compaction</td><td>Compact</td><td>Auto-Compact</td></tr>
+<tr><td>系统提示词</td><td class="term">SystemContext</td><td>System Prompt</td><td>BaseInstructions</td></tr>
+<tr><td>输入投递</td><td class="term">Steer / Queue</td><td>—</td><td>InputQueue</td></tr>
+</table>
+
+<h2>2. Agent Loop — Session Runner</h2>
+
+<h3>2.1 双层循环</h3>
+<pre>// packages/core/src/session/runner/llm.ts
+
+const run = Effect.fn("SessionRunner.run")(function* (input) {
+  let shouldRun = input.force || hasSteer || hasQueue
+  let promotion: "steer" | "queue" | undefined
+
+  while (shouldRun) {                          // 外层：处理输入队列
+    let needsContinuation = true
+    let step = 1
+    while (needsContinuation) {                // 内层：agent 循环
+      const result = yield* runTurn(sessionID, promotion, step)
+      needsContinuation = result.needsContinuation  // 工具调用 → 继续
+      step = result.step + 1
+      promotion = "steer"
+      if (!needsContinuation)
+        needsContinuation = yield* SessionInput.hasPending(db, sessionID, "steer")
+    }
+    shouldRun = yield* SessionInput.hasPending(db, sessionID, "queue")
+  }
+})</pre>
+
+<h3>2.2 runTurn — 单次 LLM 调用 + 工具执行</h3>
+<div class="flow">runTurn():
+  ① 加载 session, agent, model, system context
+  ② 检查 step 限制: isLastStep?
+     → 是: 禁用工具，追加 MAX_STEPS_PROMPT
+  ③ 构建 LLM request: system + messages + tool definitions
+  ④ llm.stream(request) → 流式获取 LLM 响应
+  ⑤ 每收到 tool-call → toolMaterialization.settle() 并发执行
+  ⑥ 等待所有 FiberSet 完成
+  ⑦ 返回 { needsContinuation, step }
+
+  异常处理:
+    TurnTransitionError.OverflowCompaction → 压缩后继续
+    其他 defect → Effect.die</div>
+
+<h3>2.3 Steer vs Queue 投递模式</h3>
+<table>
+<tr><th>模式</th><th>行为</th></tr>
+<tr><td class="term">Steer</td><td>在下一个安全的 provider-turn 边界插队，当前 drain 继续</td></tr>
+<tr><td class="term">Queue</td><td>保持挂起直到 session 会空闲时才处理</td></tr>
+</table>
+<p>这是 OX 独有概念：用户可以在 agent 执行中间插入"转向"指令。</p>
+
+<h3>2.4 退出条件</h3>
+<table>
+<tr><th>退出类型</th><th>触发条件</th></tr>
+<tr><td>正常完成</td><td>模型不返回工具调用 + 无 steer/queue</td></tr>
+<tr><td>Step 上限</td><td>达到 agent 配置的 steps 限制 → 禁用工具</td></tr>
+<tr><td>用户中断</td><td>failInterruptedTools()</td></tr>
+<tr><td>Overflow Compaction</td><td>上下文溢出 → 压缩后继续</td></tr>
+</table>
+
+<h2>3. 上下文管理（会话管理与持久化）</h2>
+
+<h3>3.1 SQLite + Drizzle ORM</h3>
+<pre>// packages/core/src/database/database.ts
+yield* db.run("PRAGMA journal_mode = WAL")
+yield* db.run("PRAGMA synchronous = NORMAL")
+yield* db.run("PRAGMA busy_timeout = 5000")
+// 数据库路径: ~/.opencode/opencode.db</pre>
+
+<h3>3.2 事件溯源 + 投影</h3>
+<p>所有状态变更通过 <code>EventV2</code> 发布，<code>SessionProjector</code> 消费事件更新 SQL 表：</p>
+<pre>yield* events.project(SessionV1.Event.Created, (event) =>
+  db.insert(SessionTable).values(sessionRow(event.data.info))
+)
+// 投影: Created, MessageUpdated, PartUpdated, Compaction.Ended, ...</pre>
+
+<h3>3.3 关键表</h3>
+<table>
+<tr><th>表名</th><th>用途</th></tr>
+<tr><td>session</td><td>会话元数据(id, project, title, model, tokens, cost)</td></tr>
+<tr><td>session_message</td><td>消息(id, session_id, type, seq, data)</td></tr>
+<tr><td>session_input</td><td>持久化输入收件箱(steer/queue)</td></tr>
+<tr><td>session_context_epoch</td><td>系统上下文快照(baseline, snapshot, baseline_seq)</td></tr>
+</table>
+
+<h3>3.4 Compaction</h3>
+<pre>compactIfNeeded():
+  if (估算 tokens <= context - buffer) return false  // 不需要
+  return compactAfterOverflow(input)
+
+compactAfterOverflow():
+  1. 向 LLM 发送摘要模板生成结构化 Markdown
+  2. 摘要格式: Objective / Important Details / Work State / Next Move
+  3. 发出 SessionEvent.Compaction.Ended 事件
+  4. 持久化为 compaction-type 消息</pre>
+
+<h2>4. 记忆机制</h2>
+
+<div class="note">OpenCode <strong>没有</strong>独立的跨会话记忆系统（不像 CC 的 CLAUDE.md 或 CX 的两阶段记忆管线）。它通过以下机制间接实现：</div>
+
+<h3>4.1 配置文件指令</h3>
+<pre>// opencode.json
+{
+  "instructions": ["./INSTRUCTIONS.md", "https://..."],
+  // 路径或 URL 指向持久化指令文件
+}</pre>
+
+<h3>4.2 Session Context Epoch（会话上下文快照）</h3>
+<p>恢复会话时，比较当前 SystemContext 与存储的 snapshot，仅发送 delta：</p>
+<pre>prepareOnce():
+  if (!stored) → SystemContext.initialize() → 写入新快照
+  if (stored)  → SystemContext.reconcile(current, snapshot)
+              → 仅变化的 source 生成更新文本</pre>
+
+<h3>4.3 Compaction Summary 作为记忆</h3>
+<p>compaction 产生的结构化摘要存储在 session_message 表中，作为对话的压缩记忆。</p>
+
+<h2>5. 提示词管理 — SystemContext 代数</h2>
+
+<h3>5.1 可组合的 Source 接口</h3>
+<pre>interface Source&lt;A&gt; {
+  readonly key: Key
+  readonly load: Effect&lt;A | Unavailable&gt;
+  readonly baseline: (current: A) =&gt; string   // 新会话的完整文本
+  readonly update: (previous: A, current: A) =&gt; string  // 恢复时的 delta
+  readonly removed?: (previous: A) =&gt; string
+}</pre>
+
+<h3>5.2 内置 Source</h3>
+<table>
+<tr><th>Key</th><th>内容</th></tr>
+<tr><td>core/environment</td><td>运行环境信息</td></tr>
+<tr><td>core/date</td><td>当前日期</td></tr>
+<tr><td>自定义 agent system</td><td>agent 定义的系统文本</td></tr>
+</table>
+
+<h3>5.3 组装逻辑</h3>
+<pre>const system = [
+  agent.info?.system,        // agent 定义的提示词
+  systemContext.baseline,    // 所有 source 的 baseline 合并
+].filter(Boolean)
+
+const request = LLM.request({
+  model,
+  system,
+  messages: [...toLLMMessages(context, model), ...(isLastStep ? [MAX_STEPS_PROMPT] : [])],
+  tools: toolMaterialization?.definitions ?? [],
+})</pre>
+
+<h2>6. 状态管理</h2>
+
+<h3>6.1 分布式 Effect 服务</h3>
+<p>没有独立的 state 包。状态分散在 Effect 服务中：</p>
+<table>
+<tr><th>服务</th><th>职责</th></tr>
+<tr><td>SessionExecution</td><td>进程全局协调（active/resume/wake/interrupt）</td></tr>
+<tr><td>SessionRunner</td><td>实际 agent 循环</td></tr>
+<tr><td>SessionStore</td><td>会话读取（get/context/runnerContext）</td></tr>
+<tr><td>SessionProjector</td><td>事件 → SQL 投影</td></tr>
+<tr><td>MessageUpdater</td><td>内存消息状态（Immer 不可变）</td></tr>
+</table>
+
+<h3>6.2 SessionExecution 接口</h3>
+<pre>interface SessionExecution {
+  active: Effect&lt;ReadonlySet&lt;SessionID&gt;&gt;         // 当前活跃会话
+  resume(sessionID): Effect&lt;void, RunError&gt;      // 加入或启动执行
+  wake(sessionID): Effect&lt;void&gt;                  // 建议性唤醒
+  interrupt(sessionID): Effect&lt;void&gt;             // 中断执行
+}</pre>
+
+<h2>7. 安全机制</h2>
+
+<h3>7.1 三值权限模型</h3>
+<pre>type Effect = "allow" | "deny" | "ask"
+
+evaluate(action, resource, ...rulesets):
+  → findLast 匹配的规则 → 未匹配则默认 "ask"
+
+assert(input):
+  effect === "deny"  → throw BlockedError
+  effect === "allow" → 继续
+  effect === "ask"   → 创建 pending 请求 → 阻塞等待用户回复</pre>
+
+<h3>7.2 权限来源优先级</h3>
+<div class="flow">配置的 agent rules (最高)
+  ├─ deny 优先于 saved allow
+  ↓
+saved rules ("always allow" 持久化)
+  ↓
+默认 "ask"</div>
+
+<h3>7.3 路径隔离 — LocationMutation</h3>
+<pre>resolve(input):
+  relative path 逃逸 location → PathError("relative_escape")
+  absolute path 在 location 外  → 需要 external_directory 权限
+  symlink 指向 location 外     → PathError("location_escape")</pre>
+
+<h3>7.4 工具注册权限过滤</h3>
+<p>ToolRegistry.materialize() 时过滤掉被 deny 的工具（目录级可见性控制），但运行时仍依赖 assert()。</p>
+
+<h3>7.5 保存的权限</h3>
+<p>用户回答"always"时存入 <code>permission</code> SQLite 表（按 project + action + resource 唯一索引）。</p>
+
+<h2>8. 工具使用</h2>
+
+<h3>8.1 双层注册</h3>
+<div class="flow">Location-scoped built-ins → Tools.Service.register()
+  (bash, edit, read, write, glob, grep, ...)
+  ↓
+Process-scoped application tools → ApplicationTools.Service
+  (plugins/external tools)
+  ↓
+ToolRegistry.materialize(permissions?)
+  → 合并两层 + 过滤 deny → Materialization
+    ├─ definitions: ToolDefinition[] (给 LLM)
+    └─ settle(): (call) → Settlement (执行工具)</flow></div>
+
+<h3>8.2 内置工具</h3>
+<table>
+<tr><th>工具</th><th>输入 Schema</th><th>权限 Action</th></tr>
+<tr><td>bash</td><td>{ command, workdir?, timeout? }</td><td>bash</td></tr>
+<tr><td>edit</td><td>{ path, oldString, newString, replaceAll? }</td><td>edit</td></tr>
+<tr><td>read</td><td>{ path, offset?, limit? }</td><td>read</td></tr>
+<tr><td>write</td><td>{ path, content }</td><td>edit</td></tr>
+<tr><td>glob</td><td>{ pattern, path?, limit? }</td><td>glob</td></tr>
+<tr><td>grep</td><td>{ pattern, path?, include?, limit? }</td><td>grep</td></tr>
+<tr><td>todowrite</td><td>{ todos }</td><td>todowrite</td></tr>
+<tr><td>skill</td><td>{ name }</td><td>skill</td></tr>
+<tr><td>question</td><td>{ questions }</td><td>question</td></tr>
+<tr><td>apply-patch</td><td>unified diff</td><td>edit</td></tr>
+<tr><td>webfetch</td><td>{ url }</td><td>webfetch</td></tr>
+<tr><td>websearch</td><td>{ query }</td><td>websearch</td></tr>
+</table>
+
+<h3>8.3 MCP 集成</h3>
+<pre>// packages/opencode/src/mcp/index.ts
+支持 3 种传输:
+  StdioClientTransport     // 标准输入输出
+  SSEClientTransport       // Server-Sent Events
+  StreamableHTTPClientTransport  // HTTP 流式
+
+支持 OAuth (McpOAuthProvider)
+支持 roots, logging, tool-list 变更通知</pre>
+
+<h3>8.4 Skill 工具</h3>
+<p>Skill 按 agent 权限过滤，每个 skill 调用也走 permission.assert()：</p>
+<pre>skill.assertPermission({
+  action: "skill",
+  resources: [skill.name],
+  save: [skill.name],
+})</pre>
+
+<h3>8.5 工具输出截断</h3>
+<pre>MAX_LINES = 2_000
+MAX_BYTES = 50 * 1024  // 50KB
+RETENTION = Duration.days(7)
+
+超限 → preview(head + tail) + 完整内容写入磁盘文件
+      → marker: "... output truncated; full content saved to {path}"</pre>
+
+</body>
+</html>

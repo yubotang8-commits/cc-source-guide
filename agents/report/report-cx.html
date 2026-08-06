@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Codex (CX) 架构报告</title>
+<style>
+  :root { --bg: #fafafa; --border: #e0e0e0; --accent: #059669; --tag: #d1fae5; --code-bg: #1e1e1e; --code-fg: #d4d4d4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: #1a1a1a; line-height: 1.7; max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.8rem; margin-bottom: 0.3rem; border-bottom: 3px solid var(--accent); padding-bottom: 0.5rem; }
+  h2 { font-size: 1.3rem; margin: 2rem 0 0.8rem; color: #065f46; border-left: 4px solid var(--accent); padding-left: 0.6rem; }
+  h3 { font-size: 1.05rem; margin: 1.2rem 0 0.4rem; color: #064e3b; }
+  .subtitle { color: #666; font-size: 0.95rem; margin-bottom: 2rem; }
+  .meta { display: inline-block; background: var(--tag); padding: 2px 10px; border-radius: 4px; font-size: 0.82rem; margin: 0 4px 4px 0; }
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.82rem; line-height: 1.5; margin: 0.6rem 0; }
+  code { font-family: "Cascadia Code", "Fira Code", monospace; }
+  :not(pre) > code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+  th { background: #f0fdf4; font-weight: 600; }
+  .flow { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 1rem; margin: 0.8rem 0; font-family: monospace; font-size: 0.85rem; white-space: pre; overflow-x: auto; }
+  .term { color: var(--accent); font-weight: 600; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.6rem 1rem; margin: 0.8rem 0; font-size: 0.9rem; border-radius: 0 6px 6px 0; }
+  .rust-hint { background: #fefce8; border-left: 3px solid #ca8a04; padding: 0.5rem 1rem; margin: 0.6rem 0; font-size: 0.88rem; border-radius: 0 6px 6px 0; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+
+<h1>Codex (CX) 架构报告</h1>
+<p class="subtitle">Rust 多 crate 架构 | openai/codex | 43 crates | 1,015 文件</p>
+<span class="meta">Rust</span><span class="meta">Tokio async</span><span class="meta">SQLite</span><span class="meta">多 crate</span>
+
+<div class="rust-hint">
+  <strong>Rust 初学者提示：</strong> Codex 使用 Rust 编写。关键概念：<code>Arc&lt;T&gt;</code> 是线程安全的引用计数指针（类似 TS 的共享对象引用）；<code>Mutex</code> 是互斥锁（保证同一时间只有一个线程访问）；<code>async/await</code> 与 TS 类似但更严格。
+</div>
+
+<h2>1. 术语映射</h2>
+<table>
+<tr><th>概念</th><th>CX 术语</th><th>CC 对应</th><th>OX 对应</th></tr>
+<tr><td>一次对话</td><td class="term">Thread</td><td>Session</td><td>Session</td></tr>
+<tr><td>对话历史记录</td><td class="term">Rollout</td><td>Transcript</td><td>History</td></tr>
+<tr><td>一个处理周期</td><td class="term">Turn</td><td>Turn</td><td>Step</td></tr>
+<tr><td>安全审查</td><td class="term">Guardian</td><td>YOLO Classifier</td><td>PermissionV2.evaluate</td></tr>
+<tr><td>沙箱</td><td class="term">SandboxManager</td><td>Sandbox Adapter</td><td>LocationMutation</td></tr>
+<tr><td>工具路由</td><td class="term">ToolRouter</td><td>tools.ts</td><td>ToolRegistry</td></tr>
+<tr><td>权限策略</td><td class="term">AskForApproval</td><td>PermissionMode</td><td>Permission.Ruleset</td></tr>
+<tr><td>上下文压缩</td><td class="term">Auto-Compact</td><td>Compact</td><td>Compaction</td></tr>
+</table>
+
+<h2>2. Agent Loop — Session + Turn</h2>
+
+<h3>2.1 核心结构</h3>
+<pre>// Session 结构体（session.rs）
+struct Session {
+    thread_id: ThreadId,
+    tx_event: Sender&lt;Event&gt;,
+    agent_status: watch::Sender&lt;AgentStatus&gt;,
+    state: Mutex&lt;SessionState&gt;,          // 互斥锁保护的状态
+    conversation: Arc&lt;RealtimeConversationManager&gt;,
+    active_turn: Mutex&lt;Option&lt;ActiveTurn&gt;&gt;,
+    input_queue: InputQueue,
+    guardian_review_session: GuardianReviewSessionManager,
+    services: SessionServices,            // 所有服务依赖
+}</pre>
+
+<h3>2.2 Turn 循环 — <code>run_turn()</code></h3>
+<div class="flow">run_turn():
+  loop {
+    ① 从 input_queue 获取待处理输入
+    ② 运行 hooks_and_record_inputs → 若 hooks 阻止则 break
+    ③ 构建 StepContext（工具/MCP 快照）
+    ④ run_sampling_request() → 流式调用模型 + 执行工具
+    ⑤ 检查 token 预算 → 是否需要 auto-compact
+    ⑥ should_roll_over = needs_follow_up && (new_context_window || token_limit)
+       ├─ roll_over → 开始新的上下文窗口
+       └─ auto_compact → 压缩历史
+    ⑦ 运行 turn-stop hooks
+  }</div>
+
+<h3>2.3 采样请求 — <code>try_run_sampling_request()</code></h3>
+<p>最内层循环，逐事件消费模型流式响应：</p>
+<pre>let mut in_flight: FuturesOrdered&lt;BoxFuture&lt;CodexResult&lt;ResponseInputItem&gt;&gt;&gt;;
+let mut needs_follow_up = false;
+
+loop {
+    let event = stream.next().await;
+    match event {
+        ResponseEvent::OutputItemDone(item) => {
+            // 分发工具调用
+            let result = handle_output_item_done(&mut ctx, item, ...).await;
+            if result.has_tool_call { needs_follow_up = true; }
+        }
+        // ... reasoning, content delta, error
+    }
+}</pre>
+
+<h3>2.4 退出条件</h3>
+<table>
+<tr><th>退出类型</th><th>触发条件</th><th>CC 对应</th></tr>
+<tr><td>正常完成</td><td>模型不返回工具调用</td><td><code>completed</code></td></tr>
+<tr><td>用户中断</td><td>CancellationToken 触发</td><td><code>aborted_tools</code></td></tr>
+<tr><td>Guardian 拒绝</td><td>连续3次或窗口内10次拒绝</td><td>—</td></tr>
+<tr><td>Token 上限</td><td>到达窗口 token 限制</td><td><code>prompt_too_long</code></td></tr>
+<tr><td>Hook 阻止</td><td>turn-stop hook 阻止继续</td><td><code>hook_stopped</code></td></tr>
+</table>
+
+<h2>3. 上下文管理（会话管理与持久化）</h2>
+
+<h3>3.1 Rollout 持久化</h3>
+<p>通过 <code>ThreadStore</code> trait（存储无关）+ <code>RolloutRecorder</code>（磁盘 JSON）：</p>
+<pre>trait ThreadStore {
+    fn create_thread(&self, params) -&gt; Future&lt;()&gt;;
+    fn append_items(&self, params) -&gt; Future&lt;()&gt;;      // 追加记录
+    fn load_history(&self, params) -&gt; Future&lt;StoredThreadHistory&gt;;
+    fn persist_thread(&self, thread_id) -&gt; Future&lt;()&gt;;
+    fn flush_thread(&self, thread_id) -&gt; Future&lt;()&gt;;
+}</pre>
+
+<h3>3.2 Compaction（上下文压缩）</h3>
+<pre>// compact.rs 核心
+1. 收集所有 user messages（过滤掉之前的 summary）
+2. 向模型发送 SUMMARIZATION_PROMPT 生成摘要
+3. 保留最近的 user messages（上限 20K tokens）
+4. 构建 compacted_history = 保留消息 + 摘要
+5. sess.replace_compacted_history() 替换历史</pre>
+
+<h2>4. 记忆机制</h2>
+
+<h3>4.1 两阶段记忆管线</h3>
+<div class="flow">启动时:
+  Phase 1: 从历史 Rollouts 提取记忆
+    → 从 state_db 认领待处理 rollout
+    → 加载 rollout items
+    → AI 提取 → { raw_memory, rollout_summary }
+    → 存入 memories DB
+  ↓
+  Phase 2: 合并原始记忆
+    → 获取全局 Phase 2 锁
+    → 准备 git 仓库作为记忆工作区
+    → 启动受限 agent 合并记忆
+    → agent 配置: 无网络、无 MCP、临时、不递归
+    → 结果写入 $CODEX_HOME/memories/MEMORY.md</div>
+
+<h3>4.2 记忆文件布局</h3>
+<table>
+<tr><th>路径</th><th>内容</th></tr>
+<tr><td><code>memories/MEMORY.md</code></td><td>合并后的记忆</td></tr>
+<tr><td><code>memories/memory_summary.md</code></td><td>摘要</td></tr>
+<tr><td><code>memories/raw_memories.md</code></td><td>Phase 1 原始输出</td></tr>
+<tr><td><code>memories/rollout_summaries/</code></td><td>每 rollout 摘要</td></tr>
+<tr><td><code>memories/skills/</code></td><td>学到的技能</td></tr>
+</table>
+
+<h2>5. 提示词管理</h2>
+
+<h3>5.1 模板嵌入</h3>
+<p>使用 <code>include_str!()</code> 编译时嵌入 Markdown 模板：</p>
+<pre>pub const SUMMARIZATION_PROMPT: &str = include_str!("../templates/compact/prompt.md");
+pub const APPLY_PATCH_TOOL_INSTRUCTIONS: &str = include_str!("../templates/apply_patch_tool_instructions.md");</pre>
+<div class="rust-hint"><code>include_str!()</code> 是 Rust 宏，在编译时将文件内容作为字符串常量嵌入，类似 TS 里的 raw import。</div>
+
+<h3>5.2 Prompt 组装</h3>
+<pre>let prompt = Prompt {
+    input: turn_input,
+    base_instructions: sess.get_base_instructions().await,
+    ..Default::default()
+};</pre>
+
+<h2>6. 状态管理</h2>
+
+<h3>6.1 四库 SQLite</h3>
+<table>
+<tr><th>数据库</th><th>用途</th></tr>
+<tr><td>State DB</td><td>线程元数据、回填状态</td></tr>
+<tr><td>Logs DB</td><td>审计日志（10MB 分区上限）</td></tr>
+<tr><td>Goals DB</td><td>线程目标</td></tr>
+<tr><td>Memories DB</td><td>Phase 1/2 记忆任务状态</td></tr>
+</table>
+
+<h3>6.2 SessionState</h3>
+<pre>struct SessionState {
+    session_configuration: SessionConfiguration,
+    history: ContextManager,              // 对话历史
+    auto_compact_window: AutoCompactWindow,
+    additional_context: AdditionalContextStore,
+    pending_session_start_sources: VecDeque&lt;SessionStartSource&gt;,
+    granted_permissions: HashMap&lt;String, AdditionalPermissionProfile&gt;,
+    // ...
+}</pre>
+
+<h2>7. 安全机制</h2>
+
+<h3>7.1 安全管道</h3>
+<div class="flow">用户命令
+  ↓
+① Shell Command Safety Check
+   is_known_safe_command? / dangerous_command_match?
+   ├─ 安全 → 自动批准
+   └─ 不安全/未知 ↓
+② Hooks: PermissionRequest
+   任何 hook deny = 最终阻止
+   ↓
+③ Guardian Auto-Review (AI)
+   allow/deny/timeout→deny（失败闭合）
+   ↓
+④ User Approval Prompt
+   ↓
+⑤ SandboxManager::transform()
+   seatbelt / landlock+bwrap / Windows restricted-token
+   ↓
+⑥ 进程执行 + 违规监控
+   ↓
+⑦ is_likely_sandbox_denied() 分类违规</div>
+
+<h3>7.2 Guardian（AI 安全审查员）</h3>
+<pre>struct GuardianAssessment {
+    risk_level: GuardianRiskLevel,       // Low/Medium/High/Critical
+    user_authorization: GuardianUserAuthorization,
+    outcome: GuardianAssessmentOutcome,  // Allow/Deny
+    rationale: String,
+}
+
+// 断路器：3次连续拒绝 或 窗口50次中10次拒绝 → 中断 turn
+MAX_CONSECUTIVE_GUARDIAN_DENIALS_PER_TURN = 3
+MAX_RECENT_AUTO_REVIEW_DENIALS_PER_TURN = 10</pre>
+
+<h3>7.3 平台沙箱</h3>
+<table>
+<tr><th>平台</th><th>沙箱实现</th><th>特点</th></tr>
+<tr><td>macOS</td><td>Seatbelt (<code>/usr/bin/sandbox-exec</code>)</td><td>文件/网络规则，校验可执行路径</td></tr>
+<tr><td>Linux</td><td>Landlock + Bubblewrap</td><td>命名空间隔离，检测 WSL1</td></tr>
+<tr><td>Windows</td><td>Restricted Token / Elevated</td><td>降权令牌，按策略回退</td></tr>
+</table>
+
+<h3>7.4 Shell 安全分类</h3>
+<pre>// 安全命令白名单
+is_safe_to_call_with_exec():
+  "cat" | "ls" | "grep" | "head" | "tail" | "wc" | ... → true
+  "git" → 仅子命令: status, log, diff, show, branch (只读)
+  "find" → 仅无 -exec/-delete
+  "sed" → 仅 -n {N|M,N}p
+
+// 危险检测: 递归解析 bash -lc "..." 中的嵌套命令
+dangerous_command_match():
+  "rm -f" → ForcedRm
+  "sudo ..." → 递归检查
+  "trap ..." → 检查嵌套危险命令</pre>
+
+<h2>8. 工具使用</h2>
+
+<h3>8.1 工具路由</h3>
+<pre>ToolRouter {
+    registry: ToolRegistry,             // 工具注册表
+    model_visible_specs: Vec&lt;ToolSpec&gt;,  // 模型可见的工具规格
+}
+
+dispatch_tool_call():
+  1. 从 registry 查找工具
+  2. 运行 pre-tool-use hooks → 可阻止/修改输入
+  3. 调用 tool.handle()
+  4. 返回 AnyToolResult</pre>
+
+<h3>8.2 内置工具 Handlers</h3>
+<table>
+<tr><th>Handler</th><th>功能</th></tr>
+<tr><td>ShellCommandHandler</td><td>Shell 命令执行</td></tr>
+<tr><td>ExecCommandHandler</td><td>统一执行命令</td></tr>
+<tr><td>ApplyPatchHandler</td><td>应用补丁</td></tr>
+<tr><td>McpHandler</td><td>MCP 工具调用</td></tr>
+<tr><td>PlanHandler</td><td>计划工具</td></tr>
+<tr><td>CurrentTimeHandler</td><td>获取当前时间</td></tr>
+<tr><td>ViewImageHandler</td><td>查看图片</td></tr>
+<tr><td>RequestUserInputHandler</td><td>请求用户输入</td></tr>
+<tr><td>DynamicToolHandler</td><td>动态工具</td></tr>
+<tr><td>SleepHandler</td><td>延迟</td></tr>
+</table>
+
+<h3>8.3 MCP 集成</h3>
+<p>核心文件: <code>codex-rs/codex-mcp/src/</code></p>
+<table>
+<tr><th>文件</th><th>功能</th></tr>
+<tr><td>runtime.rs</td><td>MCP 服务器生命周期</td></tr>
+<tr><td>binding.rs</td><td>McpBinding — 服务器+工具快照</td></tr>
+<tr><td>connection_manager.rs</td><td>连接管理</td></tr>
+<tr><td>tools.rs</td><td>工具规格生成</td></tr>
+<tr><td>rmcp_client.rs</td><td>MCP 协议客户端</td></tr>
+<tr><td>server.rs</td><td>Codex 自身作为 MCP 服务器</td></tr>
+</table>
+
+<h3>8.4 ToolOrchestrator（沙箱编排）</h3>
+<pre>ToolOrchestrator::run():
+  1. Approval 决策 → Guardian 或 turn reviewer
+  2. 选择沙箱类型 → SandboxType
+  3. 首次尝试在沙箱中执行
+  4. 沙箱拒绝 → 可选升级到更强隔离策略重试</pre>
+
+</body>
+</html>
