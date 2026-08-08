@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 09 - 流式响应与 API 协议</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 09 - 流式响应与 API 协议</h1>
+
+<p>流式响应是 LLM 应用用户体验的生命线。没有流式，用户盯着空白屏幕等 10 秒；有了流式，每个 token 实时呈现，感知延迟降到毫秒级。本节深入 CC 的流式协议、事件类型、工具参数完整性、两层重试机制。</p>
+
+<h2>1. 为什么要用流式响应？SSE 和 WebSocket 有什么区别？</h2>
+
+<div class="question">
+为什么要用流式响应？SSE 和 WebSocket 有什么区别？CC 为什么选 SSE？
+<span class="company">字节</span> <span class="company">快手</span>
+<span class="level level-basic">基础</span>
+</div>
+
+<div class="answer">
+<p><b>为什么要流式：</b>LLM 生成是 token by token 的。等整个响应完成再返回，用户要盯着空白屏幕 10 秒——不可接受。流式让每个 token 生成后立刻推送，用户实时看到输出。</p>
+<p><b>SSE vs WebSocket：</b></p>
+<table>
+<tr><th>特性</th><th>SSE</th><th>WebSocket</th></tr>
+<tr><td>方向</td><td>服务端 -> 客户端（单向）</td><td>双向</td></tr>
+<tr><td>数据格式</td><td>纯文本</td><td>文本 + 二进制</td></tr>
+<tr><td>自动重连</td><td>内置</td><td>需自己实现</td></tr>
+<tr><td>协议复杂度</td><td>基于 HTTP，简单</td><td>独立协议，复杂</td></tr>
+<tr><td>适用场景</td><td>服务端推送（token 流）</td><td>聊天室、游戏（双向交互）</td></tr>
+</table>
+<p><b>CC 为什么选 SSE：</b>Agent 场景下，客户端向 LLM API 轮询——服务端推送 token，客户端不需要反向推送数据。单向推送足够，SSE 更简单、更可靠。</p>
+</div>
+
+<div class="diagram">
+CC 的流式场景（单向推送）：
+
+  LLM API (服务端)  ──── token 流 ────→  CC (客户端)
+                     SSE: text_delta...
+                     只需要这个方向，SSE 够了
+
+双向聊天室（需要 WebSocket）：
+
+  用户 A  ←── 双向 ──→  用户 B
+           两边都要发和收，才需要 WebSocket
+</div>
+
+<div class="trap">
+"SSE 性能比 WebSocket 差"——不对。单向推送场景下，SSE 基于 HTTP/2 可以复用连接，性能和 WebSocket 几乎一样。SSE 的自动重连、事件 ID 机制让可靠性更高。不要为了"更先进"的技术增加不必要的复杂度。
+</div>
+
+<h2>2. 流式响应的 6 种事件类型详解</h2>
+
+<div class="question">
+Claude API 的流式响应有哪些事件类型？它们的顺序和含义是什么？
+</div>
+
+<div class="answer">
+<p>API 流式响应有 <b>6 种事件类型</b>，按固定顺序出现：</p>
+<table>
+<tr><th>事件</th><th>含义</th><th>关键信息</th></tr>
+<tr><td>message_start</td><td>消息开始</td><td>message ID、model 等元信息</td></tr>
+<tr><td>content_block_start</td><td>内容块开始</td><td>类型：text 或 tool_use</td></tr>
+<tr><td>content_block_delta</td><td>增量数据</td><td>text_delta 或 input_json_delta</td></tr>
+<tr><td>content_block_stop</td><td>内容块结束</td><td>参数完整了！（关键事件）</td></tr>
+<tr><td>message_delta</td><td>消息级更新</td><td>stop_reason 在这里返回</td></tr>
+<tr><td>message_stop</td><td>消息结束</td><td>流式传输完成</td></tr>
+</table>
+</div>
+
+<div class="diagram">6 种事件的时序（一次完整流式响应）：
+
+  message_start
+      |
+      v
+  content_block_start (index=0, type="text")
+      |
+      +-- content_block_delta (text_delta: "你")
+      +-- content_block_delta (text_delta: "好")
+      +-- content_block_delta (text_delta: "！")
+      |
+      v
+  content_block_stop (index=0)             <- 文本块结束
+      |
+      v
+  content_block_start (index=1, type="tool_use", name="Bash")
+      |
+      +-- content_block_delta (input_json_delta: '{"comm')
+      +-- content_block_delta (input_json_delta: 'and":"ls')
+      +-- content_block_delta (input_json_delta: ' -la"}')
+      |
+      v
+  content_block_stop (index=1)             <- 工具块结束(参数完整!)
+      |
+      v
+  message_delta (stop_reason="tool_use")
+      |
+      v
+  message_stop
+</div>
+
+<div class="depth">
+一条消息可以有多个 content_block 吗？可以。文本块和工具调用块可以交替出现，每个块用 index 标识顺序。典型模式：文本说明 + 工具调用 + 文本解释 + 又一个工具调用。这就像一个人一边说话一边干活：先说"我来查看文件"，然后执行 Read，再说"我看到了问题"，然后执行 Edit。
+</div>
+
+<h2>3. CC 怎么知道工具参数完整了？</h2>
+
+<div class="question">
+流式响应中，工具参数是分片到达的。CC 怎么判断参数已经完整，可以执行工具了？
+<span class="company">快手</span> <span class="company">阿里</span>
+<span class="level level-senior">高级</span>
+</div>
+
+<div class="answer">
+<p><b>不是自己检查 JSON 完整性</b>。而是通过 API 的 <code>content_block_stop</code> 事件来确认。</p>
+<p>API 规范保证：当 <code>content_block_stop</code> 事件到达时，该内容块的所有增量数据已经发送完毕。对 <code>tool_use</code> 类型的块来说，这意味着工具参数 JSON 已经完整。</p>
+</div>
+
+<div class="diagram">错误做法 vs 正确做法：
+
+  [错误] 自己检查 JSON：
+    收到: '{"a":1}'  ->  JSON.parse 成功  ->  执行工具
+    问题：模型可能还在生成：
+      下一个 delta 是 ',{"b":2}'
+      完整参数其实是: [{"a":1},{"b":2}]
+      你提前执行了，参数不完整！
+
+  [正确] 等 content_block_stop 事件：
+    收到 delta: '{"a":1}'   ->  暂存到 buffer
+    收到 delta: ',{"b":2}'  ->  暂存到 buffer
+    收到 delta: ']'          ->  暂存到 buffer
+    收到 content_block_stop  ->  现在 parse + 执行！
+</div>
+
+<div class="trap">
+"收到的 JSON 看起来完整就能执行"——最常见的误区！<code>'{"a":1}'</code> 看起来是合法 JSON，但模型可能紧接着生成 <code>',{"b":2}'</code>。你自己检查 JSON 完整性，永远无法区分"真的结束了"和"恰好目前看起来合法"。只有 <code>content_block_stop</code> 事件才是 API 明确承诺的完整性信号。
+</div>
+
+<div class="cc-practice">
+源码追踪：<code>queryLoop()</code> 处理流式事件时——<code>content_block_delta</code> (input_json_delta) 追加到 buffer；<code>content_block_stop</code> 从 buffer 取出完整 JSON，JSON.parse 后构建工具调用对象并执行。整个过程中，<b>永远不会在 content_block_stop 之前尝试 parse 工具参数</b>。
+</div>
+
+<h2>4. 文字 vs 工具参数：两种不同的处理策略</h2>
+
+<div class="question">
+text_delta 和 input_json_delta 都是增量数据，为什么处理策略完全不同？
+</div>
+
+<div class="answer">
+<p>因为它们的<b>语义本质</b>不同：</p>
+<p><b>text_delta — 立即显示：</b>每个 token 是最终结果，不需要等后续 token。"你" 显示 "你"，"好" 显示 "你好"，无需回改。策略：收到即渲染。</p>
+<p><b>input_json_delta — 先缓冲后解析：</b>每个片段是 JSON 的一部分，单独看没有意义。<code>'{"comm'</code> + <code>'and":"ls'</code> + <code>' -la"}'</code> 拼成完整参数后才能用。策略：缓冲，等 content_block_stop，一次性 parse。</p>
+</div>
+
+<div class="diagram">类比：流水线上的两种产品
+
+  text_delta = 成品（出来一个卖一个）
+    "你"   -> 立刻显示
+    "好"   -> 立刻显示
+    "！"   -> 立刻显示
+
+  input_json_delta = 零件（攒齐了才能组装）
+    '{"comm'     -> 暂存
+    'and":"ls'   -> 暂存
+    ' -la"}'     -> 暂存
+    content_block_stop -> 组装完成 -> 执行
+</div>
+
+<div class="trap">
+即使 JSON.parse 成功，也不代表模型已经传完了所有参数。可能模型正在生成更复杂的嵌套结构，恰好当前片段能过 parse 检查。判断完整性不是你的工作，是 API 的工作。<code>content_block_stop</code> 就是 API 给你的承诺。
+</div>
+
+<div class="depth">
+文本为什么不需要等 content_block_stop？理论上，如果需要知道完整文本才能做后续处理（比如整段文本是 JSON、代码块需要语法高亮），就需要缓冲。但在 CC 的场景下，文本就是给人看的，逐 token 显示正好符合用户预期。
+</div>
+
+<h2>5. 两层重试机制</h2>
+
+<div class="question">
+CC 的重试机制有几层？分别在什么场景下触发？
+<span class="company">字节</span> <span class="company">腾讯</span>
+<span class="level level-mid">进阶</span>
+</div>
+
+<div class="answer">
+<p>CC 有<b>两层重试</b>，解决不同层面的问题：</p>
+<p><b>第 1 层：API 层重试（withRetry）</b>——处理网络/服务端问题：529（过载）、429（限流）、500（内部错误）。策略：指数退避自动重试。对用户透明——只感觉稍微慢了一点。</p>
+<p><b>第 2 层：模型层重试（tool_result）</b>——处理逻辑问题：文件不存在、命令执行失败、测试没通过。策略：把错误信息作为 tool_result 返回给 LLM，LLM 自行调整策略。用户可见——会看到 LLM "出错了，换个方式试试"。</p>
+</div>
+
+<div class="diagram">两层重试对照：
+
+  第 1 层：API 层（withRetry）
+  -------------------------------
+  CC --请求--> API
+                |
+                +-- 200 OK      -> 正常处理
+                +-- 529 过载    -> 指数退避重试
+                +-- 429 限流    -> 指数退避重试
+                +-- 500 错误    -> 指数退避重试
+                +-- 401 认证    -> 不重试！直接报错
+
+  第 2 层：模型层（tool_result）
+  -------------------------------
+  CC 执行工具 -> 结果
+                |
+                +-- 工具成功   -> 正常继续
+                +-- 工具失败   -> 错误信息返回给 LLM
+                                LLM 调整策略再试
+
+  例：Read("不存在的文件") -> "file not found"
+      -> LLM 看到错误 -> "让我先 ls 看看有什么文件"
+</div>
+
+<div class="trap">
+"工具执行出错 = 需要重试"——不对，关键问题是<b>谁报的错</b>：<br><br>
+<b>场景 1：</b><code>npm test</code> 返回 exit code 1——工具执行本身成功了（Bash 命令跑完了），只是测试没通过。这是<b>模型层问题</b>，把测试失败结果返回给 LLM 让它调整代码。<br><br>
+<b>场景 2：</b>API 返回 529——请求根本没到达模型。这是<b>API 层问题</b>，withRetry 自动重试。<br><br>
+<b>场景 3：</b>API 返回 401——认证失败。<b>两层都不重试</b>，直接报错给用户。重试也不会过。
+</div>
+
+<div class="depth">
+为什么 401 不重试而 529 要重试？529/429 是<b>临时状态</b>：服务器过载或限流，等一会儿可能就好了。401 是<b>永久状态</b>：API Key 无效，重试 100 次也还是 401。500 看似永久但可能是临时故障（服务重启中），所以值得重试。核心原则：<b>只重试有可能成功的请求</b>。确定性失败不值得浪费重试次数。
+</div>
+
+<div class="cc-practice">
+源码追踪：<code>withRetry()</code> 包装 API 调用，对 529/429/500 做指数退避重试，401/403 直接抛错不重试。<code>queryLoop()</code> 中，工具执行后无论成功失败，结果都作为 <code>tool_result</code> 拼入 messages，交给 LLM 决定下一步。两层重试互不干扰：API 层保证"请求能到达模型"，模型层保证"模型有机会自我修正"。
+</div>
+
+<div class="nav">
+<a href="day08.html">← 上一课</a> | <a href="index.html">返回目录</a> | <a href="day10.html">下一天 →</a>
+</div>
+</body>
+</html>
