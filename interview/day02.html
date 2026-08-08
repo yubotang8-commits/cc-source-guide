@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Day 02 - ReAct 循环的工程实现</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Day 02 - ReAct 循环的工程实现：不只是 Thought-Action-Observation</h1>
+
+<p>
+  <span class="level level-mid">中级</span>
+  <span class="company">淘天</span>
+  <span class="company">腾讯</span>
+  <span class="company">字节</span>
+</p>
+
+<!-- ============================================================ -->
+<h2>1. ReAct 与 Plan-and-Execute 有什么区别？CC 为什么选 ReAct？</h2>
+
+<div class="question">
+  ReAct 和 Plan-and-Execute 是 Agent 的两大范式，它们的本质区别是什么？Claude Code 为什么选择 ReAct？有没有 ReAct 不适用的场景？
+</div>
+
+<div class="answer">
+  <p><strong>ReAct（Reasoning + Acting）</strong>：每一步都做「推理→行动→观察」，循环往复，边想边做。</p>
+  <ul>
+    <li>优势：灵活适应，适合探索性任务（写代码、调试、搜索）</li>
+    <li>劣势：可能走弯路，token 消耗不可预测</li>
+  </ul>
+
+  <p><strong>Plan-and-Execute</strong>：先完整规划，再逐步执行，执行中不改变计划（或仅局部修正）。</p>
+  <ul>
+    <li>优势：结构化，可预估成本，适合确定性任务</li>
+    <li>劣势：不灵活，计划一旦偏差就全盘受影响</li>
+  </ul>
+
+  <p><strong>CC 选 ReAct 的原因</strong>：编码任务的不确定性极高——</p>
+  <ul>
+    <li>文件内容未知，读之前无法确定下一步</li>
+    <li>测试可能失败，需要根据错误信息调整策略</li>
+    <li>需求可能有歧义，需要边做边理解</li>
+    <li>这些都需要「观察→调整」的闭环，Plan-and-Execute 天然不支持</li>
+  </ul>
+</div>
+
+<div class="trap">
+  很多人说「ReAct 万能」——错！对于确定性流水线（如固定步骤的 CI/CD、模板化代码生成），用 Workflow（硬编码执行图）比 ReAct 省 ~4 倍 token，且成功率更高。ReAct 的灵活性来自每步都调用 LLM 推理，这既是优势也是成本。面试时一定要说「看场景选范式」，而不是一边倒。
+</div>
+
+<div class="depth">
+  面试官可能追问：能不能把 ReAct 和 Plan-and-Execute 结合？<br>
+  答：可以——先让 LLM 生成一个粗粒度 plan（如步骤列表），每步内部用 ReAct 执行。这就是 PlanReAct 混合模式。LangGraph 的 PlanExecute 就这么做。CC 本身没有显式的 plan 阶段，但用户给的 prompt 天然充当了「高层计划」。
+</div>
+
+<!-- ============================================================ -->
+<h2>2. CC 的 queryLoop 是怎么实现 ReAct 的？</h2>
+
+<div class="question">
+  Claude Code 没有在 prompt 里写 "Thought/Action/Observation"，那 ReAct 循环是怎么实现的？
+</div>
+
+<div class="answer">
+  <p>CC 用的是<strong>「隐式 ReAct」</strong>——不靠 prompt 指令，而是靠 API 的原生能力实现循环：</p>
+
+  <div class="diagram">queryLoop (for-await 循环) — query.ts
+┌─────────────────────────────────────────────────────────┐
+│  for await (const turn of turns) {                       │
+│    ┌──────────────────────────────────────────────────┐  │
+│    │  1. callAPI(messages)                            │  │
+│    │     → LLM 返回 response                          │  │
+│    │     → response.stop_reason                       │  │
+│    │                                                   │  │
+│    │  2. 检查 stop_reason:                            │  │
+│    │     ├─ "end_turn"  → break (LLM 说完了，循环结束) │  │
+│    │     └─ "tool_use"  → 继续                        │  │
+│    │                                                   │  │
+│    │  3. runTools(tool_use_calls)                     │  │
+│    │     → 逐个执行工具，收集 tool_result              │  │
+│    │                                                   │  │
+│    │  4. append tool_result → messages                 │  │
+│    │     → 进入下一轮迭代                              │  │
+│    └──────────────────────────────────────────────────┘  │
+│  }                                                       │
+└─────────────────────────────────────────────────────────┘
+
+映射关系：
+  LLM 的文本输出 = Thought（推理过程）
+  tool_use 调用   = Action（采取行动）
+  tool_result     = Observation（观察结果）
+
+  下一轮 LLM 接收完整 history → 继续推理 → 又一轮 Thought/Action/Observation</div>
+
+  <p><strong>关键洞察</strong>：CC 不用显式的 "Thought: ... Action: ... Observation: ..." 标记，而是利用 Anthropic API 原生的 <code>stop_reason</code> 和 <code>tool_use</code> 机制来隐式实现 ReAct。这比显式 prompting 更自然，因为：</p>
+  <ul>
+    <li>LLM 不需要在文本中输出结构化标记，减少格式错误</li>
+    <li>tool_use 是 API 一等公民，解析零歧义</li>
+    <li>tool_result 有标准格式，不需要从文本中正则提取</li>
+  </ul>
+</div>
+
+<div class="cc-practice">
+  在 <code>query.ts</code> 中搜索 <code>for await</code> 找到主循环体。重点关注：
+  <ul>
+    <li><code>stop_reason === "tool_use"</code> 的判断分支</li>
+    <li><code>runTools()</code> 的调用位置</li>
+    <li>tool_result 是如何 append 回 messages 数组的</li>
+  </ul>
+</div>
+
+<div class="depth">
+  面试官可能追问：为什么不把 stop_reason 设计成多个枚举值（如 "need_review", "need_approval"）？<br>
+  答：保持最小接口原则。tool_use 已经能表达「LLM 需要外部信息」这件事，额外枚举增加 API 复杂度但不增加表达能力。审批/确认等逻辑属于上层业务，不应侵入 API 层。CC 的权限检查是在 <code>runTools()</code> 内部处理的，不在循环判断里。
+</div>
+
+<!-- ============================================================ -->
+<h2>3. Agent 循环怎么防止死循环？CC 的 3 次熔断是怎么回事？</h2>
+
+<div class="question">
+  如果 LLM 反复调用工具、对话越来越长，Agent 怎么停下来？Claude Code 的「3 次熔断」机制是什么？
+</div>
+
+<div class="answer">
+  <p>CC 有两层防护：</p>
+
+  <p><strong>第一层：maxTurns 硬限制</strong></p>
+  <ul>
+    <li>循环最多跑 N 轮（maxTurns），到数即停</li>
+    <li>防止 LLM 无限调用工具</li>
+  </ul>
+
+  <p><strong>第二层：consecutiveFailures 熔断器</strong></p>
+
+  <div class="diagram">熔断机制流程：
+
+  每轮迭代：
+  ┌──────────────────────────────────────────────────┐
+  │  try:                                             │
+  │    autoCompactIfNeeded()  // 尝试压缩上下文        │
+  │    if 成功 → consecutiveFailures = 0              │
+  │    继续正常流程                                    │
+  │                                                   │
+  │  catch (prompt_too_long):                         │
+  │    consecutiveFailures++                          │
+  │    if consecutiveFailures >= 3:                   │
+  │      throw "Conversation too long"  ← 熔断！      │
+  │    else:                                          │
+  │      继续重试（带着压缩后的上下文）                 │
+  └──────────────────────────────────────────────────┘
+
+  关键点：consecutiveFailures 是「连续」失败计数
+  - 压缩成功 → 归零
+  - 压缩失败 → 累加
+  - 连续 3 次压缩失败 → 彻底熔断</div>
+
+  <p>「3 次熔断」不是「重试 3 次工具调用失败」，而是「连续 3 次上下文压缩失败」。当对话已经长到即使压缩也放不进上下文窗口时，说明对话确实无法继续，必须终止。</p>
+</div>
+
+<div class="trap">
+  很多人说「重试 3 次失败就停」——错！这是跨轮次累计的连续失败次数，不是单次操作的重试次数。每轮只要压缩成功，计数器就归零。也就是说，Agent 可能运行 100 轮都没问题（每轮压缩成功），但如果连续 3 轮压缩都失败，就熔断。这是「渐进式过载」保护，不是「固定重试」。
+</div>
+
+<div class="cc-practice">
+  在 <code>query.ts</code> 中搜索：
+  <ul>
+    <li><code>consecutiveFailures</code> — 失败计数器的定义和累加</li>
+    <li><code>autoCompactIfNeeded()</code> — 压缩触发条件</li>
+    <li><code>Conversation too long</code> — 熔断时的错误信息</li>
+  </ul>
+  重点观察：失败后计数器是否归零的逻辑、maxTurns 的默认值是多少。
+</div>
+
+<!-- ============================================================ -->
+<h2>4. 子 Agent 的 ReAct 有什么不同？</h2>
+
+<div class="question">
+  Claude Code 的子 Agent（如 Task tool 启动的子 Agent）的循环和主循环有什么区别？为什么不允许嵌套子 Agent？
+</div>
+
+<div class="answer">
+  <p><strong>子 Agent 与主循环的区别</strong>：</p>
+
+  <table>
+    <tr>
+      <th>维度</th>
+      <th>主 Agent (QueryEngine)</th>
+      <th>子 Agent (SubAgent)</th>
+    </tr>
+    <tr>
+      <td>入口</td>
+      <td>QueryEngine.query()</td>
+      <td>直接调用 query()</td>
+    </tr>
+    <tr>
+      <td>上下文</td>
+      <td>完整对话历史</td>
+      <td>精简的子任务 prompt</td>
+    </tr>
+    <tr>
+      <td>工具集</td>
+      <td>全部工具</td>
+      <td>受限工具集（无 Task tool）</td>
+    </tr>
+    <tr>
+      <td>循环结构</td>
+      <td>queryLoop（完整）</td>
+      <td>同一个 queryLoop（共享逻辑）</td>
+    </tr>
+    <tr>
+      <td>压缩</td>
+      <td>autoCompact</td>
+      <td>autoCompact（共享逻辑）</td>
+    </tr>
+    <tr>
+      <td>嵌套</td>
+      <td>可启动子 Agent</td>
+      <td>不可再启动子 Agent</td>
+    </tr>
+  </table>
+
+  <p><strong>为什么只允许 1 层嵌套</strong>：</p>
+  <ul>
+    <li><strong>上下文爆炸</strong>：每层嵌套都是独立的对话，O(depth) 的上下文开销</li>
+    <li><strong>成本失控</strong>：2 层嵌套 = 3 个并发 LLM 调用，token 消耗 3 倍+</li>
+    <li><strong>调试困难</strong>：嵌套 Agent 的错误栈极难追踪，用户看到的只是「任务失败」</li>
+  </ul>
+</div>
+
+<div class="depth">
+  如果需要多 Agent 协作怎么办？<br>
+  答：不是靠嵌套，而是靠协议——MCP（Model Context Protocol）和 A2A（Agent-to-Agent）。每个 Agent 是独立进程，通过协议通信，而不是函数调用栈嵌套。这就像微服务 vs 单体：嵌套 Agent 是「同步调用链」，MCP/A2A 是「异步消息通信」。后者可以独立部署、独立调试、独立扩缩容。
+</div>
+
+<div class="cc-practice">
+  在源码中搜索：
+  <ul>
+    <li><code>SubAgent</code> 类 — 看它如何调用 query()</li>
+    <li><code>TaskTool</code> — 看它如何启动子 Agent、传递 prompt</li>
+    <li>工具白名单 — 子 Agent 的可用工具列表在哪里定义</li>
+    <li>嵌套检查 — 搜索 <code>isSubAgent</code> 或类似标志位</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>5. 设计题：手写一个带熔断的 Agent Loop</h2>
+
+<div class="question">
+  请设计并手写一个带熔断机制的 Agent 循环，要求：有 maxTurns 限制、有连续失败熔断、有上下文压缩。
+</div>
+
+<div class="answer">
+  <p><strong>参考伪代码</strong>：</p>
+
+<pre>// 带熔断的 Agent Loop
+async function agentLoop(messages, options) {
+  const { maxTurns = 20, maxConsecutiveFailures = 3 } = options
+  let consecutiveFailures = 0
+
+  for (let turn = 0; turn &lt; maxTurns; turn++) {
+
+    // ① 尝试压缩上下文（防止 prompt_too_long）
+    try {
+      messages = await compress(messages)   // 智能摘要，保留关键信息
+      consecutiveFailures = 0               // 压缩成功，归零
+    } catch (err) {
+      if (err.code === 'prompt_too_long') {
+        consecutiveFailures++
+        if (consecutiveFailures >= maxConsecutiveFailures) {
+          throw new Error('Conversation too long, circuit breaker triggered')
+        }
+        continue  // 压缩失败但未达阈值，跳过本轮重试
+      }
+      throw err  // 其他错误直接抛出
+    }
+
+    // ② 调用 LLM
+    const response = await callAPI(messages)
+
+    // ③ 判断停止原因
+    if (response.stop_reason === 'end_turn') {
+      return response.content  // LLM 说完了，结束
+    }
+
+    // ④ 执行工具调用
+    const toolResults = await runTools(response.tool_use_calls)
+
+    // ⑤ 追加结果到消息历史
+    messages.push({ role: 'assistant', content: response.content })
+    messages.push({ role: 'user', content: toolResults })
+
+    // 进入下一轮...
+  }
+
+  throw new Error(`Exceeded max turns: ${maxTurns}`)
+}</pre>
+
+  <p><strong>对比：没有防护的朴素实现</strong>：</p>
+
+<pre>// 朴素实现 — 没有任何防护
+async function naiveLoop(messages) {
+  while (true) {                          // 无限循环！
+    const response = await callAPI(messages)  // 没有 compress → 可能 prompt_too_long
+    if (response.stop_reason === 'end_turn') return response.content
+
+    const toolResults = await runTools(response.tool_use_calls)
+    messages.push({ role: 'assistant', content: response.content })
+    messages.push({ role: 'user', content: toolResults })
+    // 消息越来越长 → 最终 API 报错 → 循环崩溃
+  }
+}</pre>
+
+  <p>朴素实现的三大问题：</p>
+  <ol>
+    <li><strong>无限循环</strong>：如果 LLM 一直输出 tool_use，永远停不下来</li>
+    <li><strong>上下文溢出</strong>：消息只增不减，最终超过 API 限制直接报错</li>
+    <li><strong>错误无恢复</strong>：prompt_too_long 报错后直接崩溃，没有降级策略</li>
+  </ol>
+</div>
+
+<div class="trap">
+  很多面试者写熔断时只写了 maxTurns，漏掉 consecutiveFailures。maxTurns 是「全局上限」，consecutiveFailures 是「局部熔断」——它处理的是一种特殊场景：压缩算法已经尽力了但上下文还是太长。这不是循环次数问题，而是「上下文是否可恢复」的问题。两个维度缺一不可。
+</div>
+
+<div class="depth">
+  追问：compress() 的压缩策略有哪些？<br>
+  答：常见的有——(1) 滑动窗口：只保留最近 N 条消息；(2) 摘要压缩：把旧消息 LLM 摘要成 1 条；(3) 重要性评分：保留关键消息（如工具调用结果），删除闲聊。CC 用的是摘要压缩，在 <code>autoCompactIfNeeded()</code> 中实现。核心权衡：压缩越激进，信息丢失越多，LLM 后续推理质量越差。
+</div>
+
+<!-- ============================================================ -->
+<div class="nav">
+  <a href="day01.html">&larr; day01</a> | <a href="index.html">index</a> | <a href="day03.html">day03 &rarr;</a>
+</div>
+
+</body>
+</html>
