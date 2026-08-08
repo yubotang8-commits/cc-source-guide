@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 01 - Agent 架构设计</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Day 01 - Agent 架构设计：从"聊天机器人"到"能干活的系统"</h1>
+
+<p><span class="level level-mid">中级</span> <span class="company">字节</span> <span class="company">阿里</span> <span class="company">腾讯</span> <span class="company">蚂蚁</span></p>
+
+<!-- ===================== 第 1 题 ===================== -->
+
+<h2>1. 核心面试题：Chatbot 和 Agent 的本质区别是什么？</h2>
+
+<div class="question">
+Chatbot 和 Agent 的本质区别是什么？加工具的 Chatbot 就是 Agent 吗？
+</div>
+
+<div class="answer">
+<p><strong>Chatbot</strong> = 单轮问答：user → LLM → response。每次输入独立，模型给出回答后流程结束。</p>
+<p><strong>Agent</strong> = 多轮推理行动循环：user → LLM → tool → LLM → ... → response。模型可以主动调用工具、观察结果、再决策，形成一个 <code>while</code> 循环，直到任务完成或满足终止条件。</p>
+
+<div class="diagram">
+Chatbot:
+  User ──→ LLM ──→ Response
+
+Agent:
+  User ──→ LLM ──→ Tool Call ──→ Tool Result ──→ LLM ──→ ...
+              ↑                                         │
+              └─────────── 继续推理 ←────────────────────┘
+              (直到 stop_reason=end_turn 或其他终止条件)
+</div>
+
+<p>关键差别在于：<strong>控制流是线性的还是循环的</strong>。Agent 的核心是 ReAct（Reasoning + Acting）循环——模型不只答一次，而是"想一步、做一步、看结果、再想"。</p>
+</div>
+
+<div class="trap">
+很多人说"Agent 就是加了工具的 Chatbot"——<strong>错！</strong>核心区别不在工具，在<strong>循环</strong>。加工具但不给循环能力的叫 <strong>Tool-augmented Chatbot</strong>，不是 Agent。比如一个只做单轮 function calling 的问答系统，虽然有工具，但流程是线性的，这不叫 Agent。<br><br>
+真正的 Agent 必须满足：模型可以<strong>自主决定</strong>是否继续调用工具、何时停止，而不是由外部逻辑硬编码"调用一次工具就返回"。
+</div>
+
+<div class="depth">
+如果 Agent 的循环是核心，那循环什么时候结束？如果 LLM 一直不停调用工具怎么办？<br><br>
+→ 这就是为什么需要<strong>终止条件</strong>（见第 3 题）和<strong>熔断机制</strong>（circuit breaker）。循环是 Agent 的力量，失控的循环是 Agent 的灾难。
+</div>
+
+<div class="cc-practice">
+在 CC 源码中，这个循环的实现在 <code>query.ts</code> 的核心函数里。你可以在源码中搜索 <code>stop_reason</code> 关键字，看到循环退出的多种条件判断。Chatbot 模式对应的是只走一次循环就退出的特例。
+</div>
+
+<!-- ===================== 第 2 题 ===================== -->
+
+<h2>2. CC 的三层架构：为什么这么分？</h2>
+
+<div class="question">
+Claude Code 的架构是怎么分层的？为什么不把所有逻辑放在一个模块里？
+</div>
+
+<div class="answer">
+CC 采用三层架构，每层职责明确：
+
+<div class="diagram">
+┌─────────────────────────────────────────────────┐
+│  QueryEngine（管家 / 指挥层）                      │
+│  - 管理 mutableMessages（对话历史）                  │
+│  - 管理 abortController（中断控制）                 │
+│  - 管理 usage（token 用量统计）                      │
+│  - 管理权限记录（tool 权限 white/blacklist）         │
+│  - 不做业务逻辑决策                                  │
+├─────────────────────────────────────────────────┤
+│  query.ts（调度层 / 核心引擎）                      │
+│  - 组装消息（system prompt + history + tools）      │
+│  - 驱动 ReAct 循环                                │
+│  - 处理工具执行结果                                  │
+│  - 决策：继续循环 / 压缩 / 终止                      │
+│  - 不存状态、不关心 HTTP                            │
+├─────────────────────────────────────────────────┤
+│  claude.ts（通信层）                               │
+│  - 发 HTTP 请求到 Anthropic API                    │
+│  - 处理流式响应（SSE parsing）                      │
+│  - 返回结构化结果                                    │
+│  - 不知道对话历史、不知道工具逻辑                      │
+└─────────────────────────────────────────────────┘
+</div>
+
+<p><strong>设计原则：单一职责</strong></p>
+<ul>
+  <li>QueryEngine 不知道 HTTP 细节</li>
+  <li>claude.ts 不知道对话历史</li>
+  <li>query.ts 不知道 UI 怎么渲染</li>
+</ul>
+</div>
+
+<div class="depth">
+为什么不直接让 QueryEngine 调 claude.ts？省掉中间的 query.ts 不是更简单？<br><br>
+→ 因为<strong>中间状态需要有人处理</strong>。在 ReAct 循环中，工具执行后需要决策"继续循环还是压缩对话"，对话超长需要触发 compact，多次压缩失败需要熔断。这些<strong>调度逻辑</strong>不属于状态管理（QueryEngine），也不属于通信（claude.ts），所以必须有独立的调度层。<br><br>
+如果把调度逻辑塞进 QueryEngine，它就变成了"既管状态又做决策"的 God Object；塞进 claude.ts，通信层就耦合了业务逻辑——两者都违反单一职责。
+</div>
+
+<div class="cc-practice">
+在源码中跟踪调用链：<br>
+<code>QueryEngine</code> 创建 → 调用 <code>query()</code>（query.ts）→ 内部调用 <code>claude()</code>（claude.ts）→ 返回结果 → <code>query()</code> 判断是否继续循环 → 如需继续，再调 <code>claude()</code><br><br>
+注意 QueryEngine 的角色：它在循环之外，持有整个会话的状态。循环之内的每一次迭代，query.ts 从 QueryEngine 读状态、写状态，但决策逻辑在 query.ts 自身。
+</div>
+
+<!-- ===================== 第 3 题 ===================== -->
+
+<h2>3. 手写简化 ReAct 循环</h2>
+
+<div class="question">
+请写出 Agent 的 ReAct 核心循环的伪代码，并说明所有可能的终止条件。
+</div>
+
+<div class="answer">
+
+<pre>// 简化版 ReAct 循环
+async function reactLoop(messages, tools) {
+  let consecutiveFailures = 0
+
+  while (true) {
+    // 1. 调用 LLM
+    const response = await claude(messages, tools)
+
+    // 2. 将 LLM 输出追加到消息历史
+    messages.push(response)
+
+    // 3. 检查终止条件
+    if (response.stop_reason === 'end_turn') {
+      break  // LLM 认为任务完成，正常退出
+    }
+
+    // 4. LLM 请求调用工具
+    if (response.stop_reason === 'tool_use') {
+      const toolResults = await executeTools(response.tool_calls)
+      messages.push({ role: 'user', content: toolResults })
+
+      consecutiveFailures = 0  // 工具执行成功，重置计数
+      continue  // 回到循环顶部，让 LLM 看到工具结果
+    }
+  }
+}</pre>
+
+<p><strong>5 个终止条件：</strong></p>
+
+<table>
+<tr>
+  <th>终止条件</th>
+  <th>触发原因</th>
+  <th>源码对应</th>
+</tr>
+<tr>
+  <td><code>end_turn</code></td>
+  <td>LLM 判断任务完成，主动停止</td>
+  <td><code>stop_reason === 'end_turn'</code></td>
+</tr>
+<tr>
+  <td>用户中断</td>
+  <td>用户按 Esc / Ctrl+C 强制中止</td>
+  <td><code>abortController.abort()</code></td>
+</tr>
+<tr>
+  <td>API 错误</td>
+  <td>网络异常、额度用尽、服务不可用</td>
+  <td>catch 块中的错误处理</td>
+</tr>
+<tr>
+  <td>3x 压缩失败（熔断）</td>
+  <td>连续 3 次对话压缩失败，触发熔断器</td>
+  <td><code>consecutiveFailures >= 3</code></td>
+</tr>
+<tr>
+  <td><code>maxTurns</code> 超限</td>
+  <td>循环轮次超过用户设定的上限</td>
+  <td><code>turnCount >= maxTurns</code></td>
+</tr>
+</table>
+</div>
+
+<div class="depth">
+熔断器的 <code>consecutiveFailures</code> 是跨 turn 的还是单次重试的？<br><br>
+→ <strong>跨 turn 的</strong>。它统计的是<strong>连续的 turn 级别失败</strong>，不是单次 HTTP 请求的重试。每次 ReAct 循环中，如果压缩请求本身也超长（<code>prompt_too_long</code>），意味着连压缩请求本身都发不出去——这是最严重的状态，说明对话已经膨胀到无法挽救，必须熔断。<br><br>
+注意：<code>consecutiveFailures</code> 每次工具执行成功后会重置为 0。只有压缩失败的 turn 才会计数。这是一种"可恢复的熔断"——中间如果有成功的 turn，计数就归零。
+</div>
+
+<div class="cc-practice">
+在 CC 源码中找到完整循环实现，注意以下细节：<br>
+1. <code>stop_reason</code> 的判断不止 <code>end_turn</code> 和 <code>tool_use</code>，还有 <code>max_tokens</code>（输出被截断）<br>
+2. 工具执行有超时控制和权限检查<br>
+3. 压缩逻辑（compact）不是每次循环都触发，而是对话长度超过阈值时才触发<br>
+4. 循环内还有 token 用量统计和费用估算
+</div>
+
+<!-- ===================== 第 4 题 ===================== -->
+
+<h2>4. 设计题：如果要你从零设计一个 Agent 系统，你会怎么分模块？</h2>
+
+<div class="question">
+如果从零设计一个 Agent 系统，你会怎么划分模块？为什么？
+</div>
+
+<div class="answer">
+基于 CC 源码的实践，一个 Agent 系统至少需要 6 个模块：
+
+<div class="diagram">
+┌──────────────────────────────────────────────────────┐
+│                    用户输入层 (REPL)                   │
+│  - 接收用户输入 / 斜杠命令 / 中断信号                   │
+├──────────────────────────────────────────────────────┤
+│                   编排层 (query.ts)                    │
+│  - 组装消息、驱动 ReAct 循环、处理分支逻辑              │
+│  - 决策但不存状态                                      │
+├──────────────────────────────────────────────────────┤
+│              状态层 (QueryEngine)                      │
+│  - 对话历史、中断控制、用量统计、权限记录                │
+│  - 存状态但不决策                                      │
+├──────────────────────────────────────────────────────┤
+│                通信层 (claude.ts)                      │
+│  - HTTP 请求、流式解析、重试/超时                       │
+├──────────────────────────────────────────────────────┤
+│                工具层 (tools/)                         │
+│  - 各工具的实现与注册（Read/Write/Bash/Glob...）        │
+│  - 工具权限与校验                                      │
+├──────────────────────────────────────────────────────┤
+│                压缩层 (compact/)                       │
+│  - 对话摘要、上下文裁剪、token 预算管理                 │
+└──────────────────────────────────────────────────────┘
+</div>
+
+<p><strong>最关键的设计洞察：状态和逻辑分离</strong></p>
+<ul>
+  <li><strong>QueryEngine 存状态但不决策</strong>——它是"账本"，只记录事实</li>
+  <li><strong>query.ts 决策但不存状态</strong>——它是"大脑"，只做判断</li>
+</ul>
+<p>这种分离的收益：</p>
+<ul>
+  <li>易测试：决策逻辑可以纯函数测试，不需要 mock 状态</li>
+  <li>易替换：换 LLM 提供商只改通信层，换压缩策略只改压缩层</li>
+  <li>易调试：状态层可以导出快照，复现问题</li>
+</ul>
+</div>
+
+<div class="depth">
+如果未来要支持多 Agent 协作（多个 Agent 共同完成任务），这个架构需要怎么改？<br><br>
+→ 状态层需要从"单 Agent 会话状态"扩展为"多 Agent 共享状态"——包括共享的消息队列、任务分配表、锁机制。编排层需要支持跨 Agent 的任务调度和结果汇总。通信层不变，工具层需要增加 Agent 间通信的工具（如 <code>delegate_task</code>、<code>report_result</code>）。<br><br>
+CC 目前的架构是为单 Agent 设计的，但分层设计让多 Agent 扩展成为可能——关键就是状态和逻辑的分离，让编排层可以从"单循环"升级为"多循环协调"。
+</div>
+
+<div class="cc-practice">
+在 CC 源码中验证这个模块划分：用 <code>grep</code> 搜索各模块的入口文件，确认职责边界是否如上所述。特别关注 query.ts 中是否有"不该有的"状态修改（比如直接修改 messages 而不是通过 QueryEngine），以及 claude.ts 中是否有业务逻辑泄露。
+</div>
+
+<!-- ===================== 总结 ===================== -->
+
+<h2>Day 01 小结</h2>
+
+<div class="note">
+<p><strong>今日核心收获：</strong></p>
+<ol>
+  <li>Agent ≠ Chatbot + 工具。Agent 的核心是<strong>自主循环</strong>，工具只是手段</li>
+  <li>CC 三层架构的精髓：<strong>单一职责 + 状态与逻辑分离</strong></li>
+  <li>ReAct 循环有 5 种终止条件，熔断器保护系统不死循环</li>
+  <li>从零设计 Agent 系统：6 模块，核心是"账本"和"大脑"的分离</li>
+</ol>
+
+<p><strong>明日预告：</strong> Day 02 我们将深入消息组装——system prompt、工具定义、对话历史是怎么拼在一起的？为什么这个"拼接"过程比想象中复杂得多？</p>
+</div>
+
+<div class="nav">
+← <a href="index.html">目录 → index.html</a> | <a href="day02.html">下一天 → day02.html</a>
+</div>
+
+</body>
+</html>
