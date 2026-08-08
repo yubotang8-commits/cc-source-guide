@@ -1,0 +1,41 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; max-width: 920px; margin: 0 auto; padding: 24px 20px; line-height: 1.8; color: #222; background: #fff; }
+h1 { font-size: 22px; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 20px; }
+h2 { font-size: 18px; margin: 28px 0 12px; padding-left: 8px; border-left: 4px solid #333; }
+h3 { font-size: 16px; margin: 20px 0 8px; }
+p { margin: 8px 0; }
+code { background: #f4f4f4; padding: 2px 5px; font-family: Consolas, monospace; font-size: 14px; }
+pre { background: #f4f4f4; padding: 14px; overflow-x: auto; margin: 10px 0; font-family: Consolas, monospace; font-size: 13px; line-height: 1.6; border: 1px solid #ddd; }
+.diagram { background: #f9f9f9; border: 1px solid #ddd; padding: 16px; margin: 14px 0; font-family: Consolas, monospace; font-size: 13px; line-height: 1.5; white-space: pre; overflow-x: auto; }
+.note { border: 1px solid #ccc; padding: 10px 14px; margin: 12px 0; background: #fafafa; }
+.example { border-left: 3px solid #666; padding: 8px 14px; margin: 12px 0; background: #f8f8f8; }
+.nav { margin: 30px 0 10px; padding-top: 14px; border-top: 1px solid #ddd; font-size: 14px; }
+.nav a { text-decoration: none; color: #036; }
+.nav a:hover { text-decoration: underline; }
+ul, ol { margin: 8px 0 8px 24px; }
+li { margin: 4px 0; }
+table { border-collapse: collapse; margin: 10px 0; width: 100%; }
+th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 14px; }
+th { background: #f0f0f0; }
+
+/* 面试特有样式 */
+.question { border-left: 4px solid #2980b9; padding: 10px 16px; margin: 14px 0; background: #f0f7fc; }
+.question::before { content: "面试题 "; font-weight: bold; color: #2980b9; }
+
+.answer { border-left: 4px solid #27ae60; padding: 10px 16px; margin: 10px 0 14px; background: #f0fcf4; }
+.answer::before { content: "参考回答 "; font-weight: bold; color: #27ae60; }
+
+.trap { border-left: 4px solid #e74c3c; padding: 10px 16px; margin: 14px 0; background: #fdf0ef; }
+.trap::before { content: "常见误区 "; font-weight: bold; color: #e74c3c; }
+
+.depth { border-left: 4px solid #8e44ad; padding: 10px 16px; margin: 14px 0; background: #f8f0fc; }
+.depth::before { content: "深入追问 "; font-weight: bold; color: #8e44ad; }
+
+.cc-practice { border-left: 4px solid #e67e22; padding: 10px 16px; margin: 14px 0; background: #fef9f0; }
+.cc-practice::before { content: "CC 源码实践 "; font-weight: bold; color: #e67e22; }
+
+.company { display: inline-block; background: #e8e8e8; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin: 2px; font-family: "Microsoft YaHei", sans-serif; }
+.level { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin: 2px; color: #fff; font-family: "Microsoft YaHei", sans-serif; }
+.level-basic { background: #27ae60; }
+.level-mid { background: #e67e22; }
+.level-senior { background: #c0392b; }
