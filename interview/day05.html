@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 05 - 工具系统：注册、定义与安全</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 05 - 工具系统：注册、定义与安全</h1>
+
+<p>工具是 Agent 的"手"。没有工具，大模型只会说话不会做事。本节聚焦 Claude Code 的工具如何被大模型感知、如何并发执行、权限如何管控、MCP 工具如何降级。</p>
+
+<h2>1. 大模型如何知道它能用什么工具</h2>
+
+<div class="question">
+Agent 怎么让大模型知道它能用什么工具？是把工具列表写进 system prompt 吗？
+<span class="company">快手</span> <span class="company">字节</span>
+<span class="level level-mid">mid</span>
+</div>
+
+<div class="answer">
+<p>不是。工具定义放在 API 请求的独立 <code>tools</code> 字段中，而非写在 system prompt 的文本里。</p>
+<p>每个工具定义包含三个必填项：</p>
+<ul>
+  <li><code>name</code> — 工具名称，如 <code>Bash</code>、<code>Read</code></li>
+  <li><code>description</code> — 工具用途描述，告诉模型什么时候该用</li>
+  <li><code>input_schema</code> — JSON Schema 格式的参数定义，告诉模型怎么传参</li>
+</ul>
+<p>API 层面对 <code>tools</code> 字段做格式校验，保证 name 唯一、schema 合法。模型只能从合法列表中选择工具，不会凭空"发明"一个不存在的工具。</p>
+</div>
+
+<div class="diagram">
+API 请求结构（简化）：
+{
+  "system": "你是 Claude Code，一个终端编程助手...",   ← 规则文本
+  "messages": [...],                                   ← 对话历史
+  "tools": [                                           ← 工具定义（独立字段）
+    {
+      "name": "Bash",
+      "description": "执行 bash 命令",
+      "input_schema": { "type": "object", "properties": { "command": { "type": "string" } } }
+    },
+    ...
+  ]
+}
+</div>
+
+<div class="trap">
+误区：把工具列表写进 system prompt 文本。<br>
+问题：模型可能"幻觉"出不存在的工具——system prompt 是自由文本，没有格式校验。放到 <code>tools</code> 字段里，API 强制校验，模型只能从列表里选，从根本上杜绝幻觉。
+</div>
+
+<div class="depth">
+system prompt 和 tools 字段如何分工协作？<br>
+system prompt 放<b>规则</b>，tools 字段放<b>定义</b>。两者配合：<br>
+— system prompt 说"不要对 Bash 使用 --no-verify"（用法约束）<br>
+— tools 字段说"Bash 工具存在，参数是 command"（能力声明）<br>
+规则约束行为，定义声明能力，分开设计才能各司其职。
+</div>
+
+<h2>2. 工具调用的并发安全：isConcurrencySafe(input)</h2>
+
+<div class="question">
+Claude Code 怎么判断一个工具调用是否可以并发执行？是按工具名字判断的吗？
+<span class="company">字节</span> <span class="company">腾讯</span>
+<span class="level level-senior">senior</span>
+</div>
+
+<div class="answer">
+<p><b>不是按工具名字判断的</b>。而是每次调用时，通过 <code>tool.isConcurrencySafe(input)</code> 方法，根据<b>本次调用的具体输入</b>来决定。</p>
+<p>同一个工具，不同输入，并发安全性可能完全不同：</p>
+</div>
+
+<table>
+<tr><th>调用</th><th>性质</th><th>并发安全？</th><th>执行方式</th></tr>
+<tr><td><code>Bash("git status")</code></td><td>只读操作</td><td>安全</td><td>可并行</td></tr>
+<tr><td><code>Bash("rm -rf /tmp")</code></td><td>有副作用</td><td>不安全</td><td>必须串行</td></tr>
+<tr><td><code>Read("a.txt")</code></td><td>只读操作</td><td>安全</td><td>可并行</td></tr>
+<tr><td><code>Write("a.txt", ...)</code></td><td>有副作用</td><td>不安全</td><td>必须串行</td></tr>
+</table>
+
+<div class="diagram">
+runTools() 并发调度逻辑：
+
+  工具调用列表
+      │
+      ▼
+  逐一检查 isConcurrencySafe(input)
+      │
+      ├── safe  → 放入并发池（最多 10 个同时执行）
+      └── unsafe → 等前面全部完成后再串行执行
+
+  ┌──────────────────────────────────────┐
+  │  并发池（MAX_TOOL_USE_CONCURRENCY=10）│
+  │  Bash(git status) ──┐                │
+  │  Read(a.txt)      ──┤ 同时执行       │
+  │  Read(b.txt)      ──┘                │
+  └──────────────────────────────────────┘
+      │ 全部完成后
+      ▼
+  Bash(rm -rf /tmp)   ← 串行执行
+</div>
+
+<div class="trap">
+"Read 工具总是并行安全的"——不一定。如果两个 Read 操作的文件有依赖关系呢？比如先读 package.json 再读其中指定的 tsconfig.json，逻辑上有先后顺序。但 Claude Code 把这个判断权交给了 LLM：由 LLM 决定是否在同一轮返回多个 Read 调用，CC 只负责按 <code>isConcurrencySafe(input)</code> 的结果做调度。
+</div>
+
+<div class="depth">
+为什么并发上限是 10（MAX_TOOL_USE_CONCURRENCY）？<br>
+三个原因：<br>
+1. <b>文件描述符限制</b>：每个并发任务可能打开文件或创建子进程，操作系统对 fd 数量有限<br>
+2. <b>内存压力</b>：并发工具的输出都要暂存在内存中，太多会撑爆<br>
+3. <b>Prompt Cache 干扰</b>：工具结果拼回上下文时，并发量太大会导致 prompt cache 失效，增加 token 消耗和延迟
+</div>
+
+<h2>3. 工具权限控制的三层防线</h2>
+
+<div class="question">
+Claude Code 的工具权限是怎么控制的？只有一个 allowedTools 白名单吗？
+</div>
+
+<div class="answer">
+<p>不是一层，而是<b>三层防线</b>，逐层收紧：</p>
+</div>
+
+<div class="diagram">
+三层防线（从外到内）：
+
+第 1 层：工具可用性（Tool Availability）
+  → 不是所有工具都给模型。Skill 可以自定义工具列表，
+    如果当前 skill 只需要 [Bash, Read]，模型就看不到 [Write, Edit]
+      │
+      ▼ 通过？
+第 2 层：allowedTools 白名单（Skill 级别）
+  → 比如 /commit skill 只允许 [Bash, Read, Write]
+    其他工具即使存在也不在白名单里
+      │
+      ▼ 通过？
+第 3 层：运行时权限检查（Runtime Permission）
+  → useCanUseTool() 检查用户的 permission mode
+    比如 default 模式下，rm 命令需要用户确认
+      │
+      ▼ 全部通过 → 执行工具调用
+</div>
+
+<div class="cc-practice">
+源码追踪路径：<br>
+<code>runTools()</code> → <code>useCanUseTool()</code> → 权限拦截<br>
+在 <code>runTools</code> 中，每次工具执行前都会调用 <code>useCanUseTool()</code> 做权限检查。如果不通过，直接返回权限拒绝信息给模型，工具不会真正执行。
+</div>
+
+<div class="depth">
+三层防线的设计哲学？<br>
+— 第 1 层是<b>减少诱惑</b>：看不到就不可能用<br>
+— 第 2 层是<b>最小权限</b>：只给 skill 需要的工具<br>
+— 第 3 层是<b>最后兜底</b>：即使模型"想用"，用户不同意就不行<br>
+层层防御，任何一层被绕过还有下一层。
+</div>
+
+<h2>4. MCP 工具的优雅降级</h2>
+
+<div class="question">
+如果 MCP server 没连上，Claude Code 会怎么处理？
+</div>
+
+<div class="answer">
+<p>MCP server 没连上 &rarr; 该 server 提供的工具<b>不会出现在 tools 列表里</b> &rarr; 模型无法调用 &rarr; 请求正常继续，只是可用的工具更少。</p>
+<p>CC <b>不会</b> 阻塞用户，也<b>不会</b> 抛出错误。这是一种设计取舍：可用性优于完整性。</p>
+</div>
+
+<div class="diagram">
+MCP 工具降级流程：
+
+  启动时扫描 MCP servers
+      │
+      ├── server A 已连接 → 它的工具加入 tools 列表 ✓
+      ├── server B 未连接 → 它的工具不加入 tools 列表 ✗
+      └── server C 已连接 → 它的工具加入 tools 列表 ✓
+      │
+      ▼
+  最终 tools = 内置工具 + server A 工具 + server C 工具
+  （缺少 server B 的工具，但不影响运行）
+</div>
+
+<div class="depth">
+如果某个关键 MCP 工具是必须的呢？<br>
+Claude Code 目前没有这个场景——所有内置工具（Bash、Read、Write、Edit、Glob、Grep 等）始终可用，不依赖 MCP。<br>
+MCP 工具都是<b>增强性</b>的：有了更好，没有也能用。<br>
+对比另一种设计：MCP 断连就抛错阻塞所有功能——用户体验更差，但一致性更强。CC 选择了可用性优先。
+</div>
+
+<div class="cc-practice">
+源码验证：<br>
+在构建 tools 列表时，CC 会遍历所有已注册的 MCP server，只把状态为 connected 的 server 的工具加入列表。未连接的 server 会被静默跳过，不会打印 error 级别日志，只会 info 级别提示。
+</div>
+
+<div class="nav">
+<a href="day04.html">&larr; day04.html</a> | <a href="index.html">index.html</a> | <a href="day06.html">day06.html &rarr;</a>
+</div>
+</body>
+</html>
