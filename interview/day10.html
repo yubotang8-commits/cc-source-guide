@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 10 - 全流程设计题：从0到1设计一个生产级 Agent</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 10 - 全流程设计题：从0到1设计一个生产级 Agent</h1>
+
+<p>这是收官日。前九天我们从 REPL、消息流、上下文管理、工具系统一路拆到提示词工程和错误处理，今天把所有知识整合成一道完整的系统设计面试题——从零设计一个 Coding Agent。这道题是终极综合：不是单点深挖，而是看你能不能把所有模块串成一条线，并讲清楚每个设计决策的 trade-off。</p>
+
+<h2>1. 面试终极题：设计一个 Coding Agent 系统（45分钟白板题）</h2>
+
+<div class="question">
+请设计一个生产级的 Coding Agent 系统，类似 Claude Code，能理解用户意图、调用工具、修改代码，并可靠地完成复杂编程任务。请从需求和架构开始，逐步深入核心模块。
+<span class="company">字节</span> <span class="company">阿里</span> <span class="company">OpenAI</span>
+<span class="level level-senior">senior</span>
+</div>
+
+<div class="answer">
+<p>参考回答结构（按时间线推进）：</p>
+
+<p><b>a) 需求分析（5分钟）</b></p>
+<p>解决什么问题？让 LLM 从"只会说话"变成"能做事"——在终端环境中自动化完成编程任务。核心需求三个：</p>
+<ul>
+  <li><b>自主决策</b>：LLM 判断下一步做什么，而非用户逐步指令</li>
+  <li><b>工具执行</b>：读文件、写文件、跑命令、搜索代码</li>
+  <li><b>长对话可靠</b>：上下文不能爆、错误不能崩、工具不能卡</li>
+</ul>
+
+<p><b>b) 高层架构（8分钟）</b></p>
+<p>三层架构，职责边界清晰：</p>
+<ul>
+  <li><b>交互层</b>（REPL）：用户输入、流式输出、权限确认</li>
+  <li><b>调度层</b>（QueryEngine）：消息组装、ReAct 循环、上下文管理</li>
+  <li><b>执行层</b>（Tool System）：工具注册、并发调度、权限校验</li>
+</ul>
+
+<p><b>c) 核心循环：ReAct 实现（8分钟）</b></p>
+<p>循环体 = API 调用 + 响应解析 + 工具执行 + 结果回注，直到收到 <code>end_turn</code> 或达到 <code>maxTurns</code>。每一轮都是"思考-行动-观察"的完整闭环。</p>
+
+<p><b>d) 上下文管理：5层渐进压缩（8分钟）</b></p>
+<p>从免费到昂贵，逐层防线：microCompact → autoCompact → 大模型总结 → 会话拆分 → 熔断拒绝。</p>
+
+<p><b>e) 工具系统（5分钟）</b></p>
+<p>注册（tools 字段声明）+ 安全（三层防线）+ 并发（isConcurrencySafe 动态判断）。</p>
+
+<p><b>f) 提示词设计（5分钟）</b></p>
+<p>三段式结构（system/tools/messages）+ 静态内容前置以最大化 prompt cache。</p>
+
+<p><b>g) 错误处理（4分钟）</b></p>
+<p>两层重试（API 层 429/500 + 工具层 transient error）+ 熔断器（连续失败 3 次停止循环）。</p>
+
+<p><b>h) Trade-off 分析（2分钟）</b></p>
+<p>可用性 vs 一致性（MCP 降级）、延迟 vs 缓存效率（microCompact）、安全 vs 体验（权限确认打断）。</p>
+</div>
+
+<div class="trap">
+误区：一上来就开始画组件图，没有先讲清楚"解决什么问题"和"为什么这么设计"。<br>
+面试官要的不是你背答案，而是你<b>做决策的理由</b>。架构是 trade-off 的产物，不是标准答案的堆叠。
+</div>
+
+<h2>2. 架构白板图</h2>
+
+<div class="question">
+请在白板上画出这个 Coding Agent 的完整请求流程。
+</div>
+
+<div class="diagram">
+Coding Agent 完整架构与请求流程：
+
+  用户输入
+      │
+      ▼
+  ┌─────────────────────────────────────────────────┐
+  │  REPL (交互层)                                    │
+  │  processUserInput()                              │
+  └──────────────┬──────────────────────────────────┘
+                 │
+                 ▼
+  ┌─────────────────────────────────────────────────┐
+  │  QueryEngine (调度层)                             │
+  │  submitMessage()                                 │
+  │    → 组装 system + tools + messages              │
+  │    → 调用 query.ts 的 ReAct 循环                  │
+  └──────────────┬──────────────────────────────────┘
+                 │
+                 ▼
+  ┌─────────────────────────────────────────────────┐
+  │  query.ts — ReAct 循环                            │
+  │                                                    │
+  │  loop {                                            │
+  │    ┌──────────────────────────────┐               │
+  │    │  claude.ts — API 调用         │               │
+  │    │  streaming response           │               │
+  │    └──────┬───────────────────────┘               │
+  │           │                                       │
+  │           ├── text 块 → 流式显示给用户              │
+  │           │                                       │
+  │           ├── tool_use 块                          │
+  │           │   content_block_stop 触发:             │
+  │           │     runTools()                         │
+  │           │       → 权限检查 (useCanUseTool)        │
+  │           │       → isConcurrencySafe(input)       │
+  │           │         safe  → 并发池 (max 10)         │
+  │           │         unsafe → 串行队列               │
+  │           │       → 执行 → tool_result             │
+  │           │   结果回注到 messages                   │
+  │           │                                       │
+  │           └── end_turn → break 跳出循环             │
+  │                                                    │
+  │    autoCompactIfNeeded()  ← 5层渐进压缩            │
+  │  }                                                  │
+  └─────────────────────────────────────────────────┘
+                 │
+                 ▼
+  更新 mutableMessages, usage
+  返回结果到 REPL 显示
+</div>
+
+<div class="depth">
+面试官可能会问："为什么 ReAct 循环放在 query.ts 而不是 QueryEngine 里？"<br>
+分离关注点：QueryEngine 负责<b>消息生命周期管理</b>（组装、存储、压缩），query.ts 负责<b>单次对话的循环逻辑</b>（调用 API、解析响应、执行工具）。一个管"状态"，一个管"流程"，互不干扰。
+</div>
+
+<div class="cc-practice">
+源码对应关系：<br>
+— <code>REPL.processUserInput()</code>：入口，处理用户输入<br>
+— <code>QueryEngine.submitMessage()</code>：调度核心，组装消息并启动循环<br>
+— <code>query.ts</code>：ReAct 循环实现，处理 API 调用和工具执行<br>
+— <code>claude.ts</code>：底层 API 封装，处理流式解析和重试<br>
+— <code>runTools()</code>：工具调度，判断并发安全并执行
+</div>
+
+<h2>3. CC 的11个值得参考的工程实践</h2>
+
+<div class="question">
+从 Claude Code 源码中，你总结出哪些可以作为通用 Agent 工程实践的设计模式？
+<span class="company">阿里</span> <span class="company">美团</span>
+<span class="level level-senior">senior</span>
+</div>
+
+<div class="answer">
+<p>以下 11 个实践来自源码分析，每个都可以在面试中作为"加分点"展开：</p>
+</div>
+
+<div class="cc-practice">
+<p><b>a) 静态/动态提示词分段 &rarr; 最大化缓存</b></p>
+<p>system prompt 中不变的规则文本放在前段，用户相关的动态内容放在后段，中间用 <code>cache_control</code> 标记断点。API 按 prefix 匹配缓存，前置内容不变则缓存命中，省 token 省延迟。</p>
+</div>
+
+<div class="cc-practice">
+<p><b>b) 工具结果预算 &rarr; 控制单次输出长度</b></p>
+<p>在 system prompt 中告诉大模型"工具输出不要超过 N 字符"，而不是在工具执行后截断。前置约束比后置裁剪好——截断可能丢失关键信息，而模型主动控制在语义上更完整。</p>
+</div>
+
+<div class="cc-practice">
+<p><b>c) microCompact &rarr; 免费压缩</b></p>
+<p>在每次 ReAct 循环结束后，不调用 API，直接在本地做轻量压缩：合并连续的 tool_result、删除冗余空白、折叠过长的文件内容。零 token 成本，却能显著延缓上下文增长。</p>
+</div>
+
+<div class="cc-practice">
+<p><b>d) 5层渐进压缩 &rarr; 分级防线</b></p>
+<p>不是一个"压缩"策略，而是 5 道防线，成本从低到高：microCompact（免费）→ autoCompact（低配模型总结）→ 高配模型重写 → 会话拆分 → 熔断拒绝。每一层是下一层的保险。</p>
+</div>
+
+<div class="cc-practice">
+<p><b>e) 墓碑消息 &rarr; 安全软删除</b></p>
+<p>删除消息时不直接移除（会破坏索引和引用），而是用 tombstone 标记"已删除"。后续压缩时再统一回收。类似 Git 的垃圾回收——先标记，再清理。</p>
+</div>
+
+<div class="cc-practice">
+<p><b>f) isConcurrencySafe(input) &rarr; 动态并行判断</b></p>
+<p>并发安全性不是工具的属性，而是<b>调用的属性</b>。同一个 Bash 工具，读操作可并行，写操作必须串行。按输入动态判断，比按工具名静态标记精确得多。</p>
+</div>
+
+<div class="cc-practice">
+<p><b>g) MCP 优雅降级 &rarr; 可用性优先</b></p>
+<p>MCP server 没连上？不报错，不停服，只是少几个工具。内置工具始终可用，MCP 是增量增强。这是<b>可用性 &gt; 一致性</b>的设计取舍。</p>
+</div>
+
+<div class="cc-practice">
+<p><b>h) 两层重试 &rarr; 分清谁报的错</b></p>
+<p>API 层重试：429（限流）和 500（服务端错误），指数退避，最多 3 次。工具层重试：transient error（文件锁、进程占用），单次重试。两层重试的逻辑不同，因为错误的来源和恢复策略不同。</p>
+</div>
+
+<div class="cc-practice">
+<p><b>i) Cron Jitter &rarr; 避开整点</b></p>
+<p>定时任务（如 MCP 心跳检测）不在整点触发，而是加一个随机偏移。防止多个 Agent 实例同时醒来，造成瞬间请求尖峰。这是分布式系统的经典实践。</p>
+</div>
+
+<div class="cc-practice">
+<p><b>j) 子 Agent 限制1层 &rarr; 防止上下文爆炸</b></p>
+<p>Agent 可以启动子 Agent，但子 Agent 不能再启动子 Agent。只允许 1 层嵌套。原因：每层 Agent 都要带完整上下文，两层嵌套的 token 消耗是指数增长的。硬性限制，不可配置。</p>
+</div>
+
+<div class="cc-practice">
+<p><b>k) void fire-and-forget &rarr; 不依赖的异步操作不等</b></p>
+<p>MCP 心跳、日志写入、统计上报等操作，如果主流程不依赖其结果，就不 await——fire and forget。主循环不能被无关的 IO 拖慢。失败也不影响核心流程。</p>
+</div>
+
+<div class="depth">
+面试时怎么用这些实践？<br>
+不要流水账式地列 11 个。挑 2-3 个和面试官问题最相关的展开。比如面试官问"怎么优化 token 消耗"，就讲 a+b+c+d（缓存+预算+免费压缩+分层压缩），形成组合拳。面试官问"怎么保证稳定性"，就讲 g+h+i+k（降级+重试+jitter+fire-forget）。
+</div>
+
+<h2>4. 常见面试追问与一击致命的回答</h2>
+
+<div class="question">
+你的 Agent 怎么处理长上下文？
+<span class="company">腾讯</span> <span class="company">百度</span>
+<span class="level level-mid">mid</span>
+</div>
+
+<div class="answer">
+<p><b>5层渐进压缩 + 熔断</b>。不是用一个方法硬扛，而是分级防线：</p>
+<ul>
+  <li>第1层 microCompact：免费，本地合并，零 API 调用</li>
+  <li>第2层 autoCompact：小模型总结，成本低</li>
+  <li>第3层 大模型重写：高质量但昂贵</li>
+  <li>第4层 会话拆分：放弃本轮完整性，保留关键信息</li>
+  <li>第5层 熔断：超过阈值就停止循环，告知用户上下文已满</li>
+</ul>
+<p>关键点：每一层都是下一层的保险，不是二选一，而是渐进升级。</p>
+</div>
+
+<div class="trap">
+误区："我们用 200k 上下文的模型，所以不用压缩。"<br>
+问题：200k token 的输入意味着每次 API 调用都贵 10 倍、慢 10 倍。上下文窗口大不是不压缩的理由，反而是更应该压缩的原因——省下的每一个 token 都是钱和延迟。
+</div>
+
+<div class="depth">
+追问："压缩会不会丢信息？"<br>
+必然会。但关键不是"丢不丢"，而是"丢得可不可接受"。5层设计的哲学是：<b>先丢不重要的</b>（microCompact 合并冗余）→ <b>再丢细节保大意</b>（autoCompact 总结）→ <b>最后才丢关键信息</b>（熔断）。信息损失的梯度是可控的。
+</div>
+
+<div class="question">
+怎么保证工具调用安全？
+<span class="company">字节</span> <span class="company">快手</span>
+<span class="level level-senior">senior</span>
+</div>
+
+<div class="answer">
+<p><b>三层防线</b>，缺一不可：</p>
+<ul>
+  <li>第1层 提示词规则：system prompt 中明确约束"不要做什么"，但模型可能不遵守</li>
+  <li>第2层 工具白名单：模型只能看到允许的工具，看不到就不可能调用——<b>减少诱惑</b></li>
+  <li>第3层 运行时权限：即使模型要调用，还需用户确认（default 模式）或权限检查通过——<b>最后兜底</b></li>
+</ul>
+</div>
+
+<div class="trap">
+误区："system prompt 里写了安全规则就够了。"<br>
+LLM 不是规则引擎。提示词是"建议"，不是"保证"。白名单和运行时权限才是确定性保障。
+</div>
+
+<div class="cc-practice">
+Claude Code 源码中三层防线的实现：<br>
+— 第1层：<code>systemPrompt</code> 中的安全规则段落<br>
+— 第2层：<code>allowedTools</code> 配置，控制哪些工具暴露给模型<br>
+— 第3层：<code>useCanUseTool()</code> 运行时检查，<code>permission mode</code>（default/acceptEdits/bypassPermissions）
+</div>
+
+<div class="question">
+缓存失效了怎么办？怎么检测和处理？
+</div>
+
+<div class="answer">
+<p><b>不需要主动检测，API 自动处理</b>。Anthropic 的 prompt cache 是 API 侧的内部机制——客户端不需要知道缓存是否命中，只需按规范组织请求（静态内容前置、标记 cache_control 断点），API 会自动做 prefix 匹配。</p>
+<p>事后可以通过响应中的 <code>usage</code> 字段查看 cache 命中情况：<code>cache_read_input_tokens</code> 和 <code>cache_creation_input_tokens</code>。<b>设计时优化，运行时透明</b>。</p>
+</div>
+
+<div class="trap">
+误区："我需要在客户端手动计算 cache key，判断是否命中。"<br>
+不需要。prompt cache 的核心设计就是客户端无感知——你只管把请求组装好，cache 是 API 侧的优化，不是客户端的能力。
+</div>
+
+<div class="question">
+并发工具怎么控制？按工具名加锁吗？
+</div>
+
+<div class="answer">
+<p><b>按输入动态判断，不是按工具名</b>。<code>isConcurrencySafe(input)</code> 在每次调用时执行，根据本次输入的具体内容决定是否可并发。</p>
+<p>原因：同一个工具的不同调用，并发安全性可能截然不同：<code>Bash("git status")</code> 可并行，<code>Bash("rm -rf /tmp")</code> 必须串行。</p>
+</div>
+
+<div class="depth">
+追问："如果两个并发工具操作的文件有依赖呢？"<br>
+这是 LLM 的责任，不是调度器的责任。LLM 决定是否在同一轮返回多个有依赖的工具调用；调度器只按 <code>isConcurrencySafe(input)</code> 的结果做调度。如果 LLM 把有逻辑依赖的工具放在同一轮，调度器会并发执行，结果可能不符合预期——但这是 LLM 的决策错误，不是调度器的 bug。
+</div>
+
+<div class="question">
+怎么防止死循环？
+</div>
+
+<div class="answer">
+<p><b>两道硬限制</b>：</p>
+<ul>
+  <li><code>maxTurns</code>：ReAct 循环的最大轮数，超过即停止。硬性上限，不可配置。</li>
+  <li>3次熔断：连续 3 次工具调用失败，停止循环。防止模型反复尝试同一个失败的操作。</li>
+</ul>
+<p>两个机制互补：<code>maxTurns</code> 防止无限循环（模型一直在"思考"），熔断防止无效循环（模型一直在"失败-重试"）。</p>
+</div>
+
+<h2>5. 面试反问环节：展示技术深度的问题</h2>
+
+<div class="question">
+面试最后，面试官问"你有什么想问我们的吗？"——作为 Agent 方向的候选人，怎么反问才能展示技术深度？
+<span class="level level-senior">senior</span>
+</div>
+
+<div class="answer">
+<p>反问的核心不是"问一个难题"，而是展示你<b>思考过这些问题</b>。以下是三个方向：</p>
+</div>
+
+<div class="depth">
+<p><b>方向一：Prompt Caching 策略</b></p>
+<p>"贵司 Agent 系统的 prompt caching 策略是什么？是像 Claude Code 那样静态/动态分段 + cache_control 断点，还是有其他方案？"</p>
+<p>展示点：你对 token 成本优化有实战思考。</p>
+</div>
+
+<div class="depth">
+<p><b>方向二：并发控制模型</b></p>
+<p>"工具调用的并发控制是静态的（按工具名白名单）还是动态的（按输入内容判断）？遇到过哪些并发冲突的实际案例？"</p>
+<p>展示点：你不满足于表面设计，关注实际运行时的边界情况。</p>
+</div>
+
+<div class="depth">
+<p><b>方向三：上下文压缩分层</b></p>
+<p>"上下文压缩用什么模型？有没有考虑分层级压缩——比如用小模型做粗筛、大模型做精排？压缩后的信息损失怎么衡量？"</p>
+<p>展示点：你理解压缩的核心矛盾是<b>成本 vs 质量</b>，而非简单地"压就行"。</p>
+</div>
+
+<div class="trap">
+反问时不要问"你们用什么模型"——这是公开信息，问了显得没做功课。也不要问"你们待遇怎么样"——这不是技术反问环节该问的。反问要展示<b>技术判断力</b>，不是信息获取。
+</div>
+
+<div class="cc-practice">
+用 CC 源码作为反问的锚点：<br>
+"我从 Claude Code 的源码中看到，它的上下文管理用了 5 层渐进压缩，从零成本的 microCompact 到高成本的模型重写。我很想了解贵司在这个方向上的实践——是类似的分层设计，还是用了其他策略？"<br>
+这样说既展示了你的源码阅读深度，又把话题引向有意义的讨论。
+</div>
+
+<div class="nav">
+<a href="day09.html">&larr; day09.html</a> | <a href="index.html">index.html</a>
+</div>
+</body>
+</html>
