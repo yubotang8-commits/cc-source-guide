@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Day 08 - 上下文管理（下）：消息设计与墓碑机制</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<h1>Day 08 - 上下文管理（下）：消息设计与墓碑机制</h1>
+
+<p>上下文不仅是 token 预算的分配，更是一棵有结构的消息树。本节聚焦 Claude Code 如何设计消息类型体系、如何满足 API 的严格交替要求、以及为什么删除消息要用"墓碑"而非直接移除。</p>
+
+<h2>1. 面试题：API 为什么要求 user/assistant 严格交替？CC 怎么处理？</h2>
+
+<div class="question">
+Anthropic API 要求 user/assistant 严格交替，为什么？连续两条 user 消息会怎样？Claude Code 怎么应对这个限制？
+<span class="company">字节</span> <span class="company">阿里</span>
+<span class="level level-mid">mid</span>
+</div>
+
+<div class="answer">
+<p>Anthropic API 强制要求消息按 <code>user → assistant → user → assistant → ...</code> 严格交替排列。如果出现连续两条相同角色的消息，API 直接报错 400。</p>
+<p>这个限制的根源在于 <code>tool_result</code> 的角色映射：<b>tool_result 使用 user 角色</b>，而 tool_use 使用 assistant 角色。因此一轮工具调用（assistant 发 tool_use，用户回 tool_result）天然形成交替。</p>
+<p>但实际场景中，连续同角色消息不可避免——比如用户连续发了两条消息，或者多条 system reminder 都映射到 user 角色。CC 的 <code>normalizeMessagesForAPI()</code> 函数负责在发送前合并相邻的同角色消息，确保满足 API 约束。</p>
+</div>
+
+<div class="diagram">
+normalizeMessagesForAPI() 处理流程：
+
+  原始消息列表（可能违反交替规则）：
+    system   → 跳过（放 system 字段）
+    user     ─┐
+    user     ─┤ 合并为一条 user 消息
+    assistant │
+    user     ─┐
+    user     ─┤ 合并为一条 user 消息
+    user     ─┘
+    assistant │
+    user       ← 合并后的结果，严格交替 ✓
+
+  合并规则：
+  1. 遍历消息，相邻同角色 → 拼接 content
+  2. 空 user 消息 → 插入占位文本 "[empty]"
+  3. tool_result(user) 后面的 user 消息 → 合并进 tool_result
+</div>
+
+<div class="trap">
+误区："tool_result 是独立的第三种角色"。<br>
+实际上 tool_result 的角色是 <code>user</code>，tool_use 的角色是 <code>assistant</code>。API 只有两种角色，工具调用借助角色映射自然形成交替。如果误以为 tool_result 是独立角色，就会不理解为什么连续两个 tool_result 需要合并。
+</div>
+
+<div class="depth">
+为什么 API 设计者选择严格交替而非允许同角色连续？<br>
+1. <b>简化模型训练</b>：交替模式让模型明确知道"轮到自己了"，不需要从多条同角色消息中判断上下文边界<br>
+2. <b>语义清晰</b>：每一轮 user→assistant 对应一次完整的交互，便于计费和审计<br>
+3. <b>避免歧义</b>：如果允许连续 user，模型可能把多条消息理解为一次输入的不同部分，也可能理解为多次独立输入
+</div>
+
+<div class="cc-practice">
+源码位置：<code>normalizeMessagesForAPI()</code><br>
+该函数在每次 API 调用前执行，遍历消息列表做两件事：<br>
+1. 相邻同角色消息的 <code>content</code> 字段合并<br>
+2. 确保第一条消息是 <code>user</code> 角色（否则 API 也会报错）<br>
+这是"发送前最后一道关卡"——所有之前的消息操作（压缩、墓碑标记等）的结果，最终经过此函数规范化后才发给 API。
+</div>
+
+<h2>2. 消息类型体系</h2>
+
+<div class="question">
+Claude Code 内部有哪些消息类型？它们和 API 的 user/assistant 角色怎么对应？
+<span class="company">快手</span>
+<span class="level level-mid">mid</span>
+</div>
+
+<div class="answer">
+<p>CC 内部定义了 7 种消息类型，每种都有 <code>role</code> 字段映射到 API 的 user 或 assistant：</p>
+</div>
+
+<table>
+<tr><th>消息类型</th><th>映射角色</th><th>说明</th></tr>
+<tr><td><code>UserMessage</code></td><td>user</td><td>用户输入的文本消息</td></tr>
+<tr><td><code>AssistantMessage</code></td><td>assistant</td><td>模型返回的文本回复</td></tr>
+<tr><td><code>ToolUseMessage</code></td><td>assistant</td><td>模型发起的工具调用请求</td></tr>
+<tr><td><code>ToolResultMessage</code></td><td>user</td><td>工具执行后返回的结果</td></tr>
+<tr><td><code>TombstoneMessage</code></td><td>—</td><td>墓碑消息，标记已逻辑删除</td></tr>
+<tr><td><code>SystemReminderMessage</code></td><td>user</td><td>系统提示注入（映射为 user）</td></tr>
+<tr><td><code>ThinkingMessage</code></td><td>assistant</td><td>扩展思考（extended thinking）内容</td></tr>
+</table>
+
+<div class="diagram">
+消息类型与 API 角色映射：
+
+  CC 内部类型               API 角色
+  ─────────────            ────────
+  UserMessage         ──→  user
+  AssistantMessage    ──→  assistant
+  ToolUseMessage      ──→  assistant   ← 关键！和 ToolResult 天然交替
+  ToolResultMessage   ──→  user        ← 关键！和 ToolUse 天然交替
+  SystemReminderMsg   ──→  user
+  ThinkingMessage     ──→  assistant
+  TombstoneMessage    ──→  跳过（不发给 API）
+
+  一次完整工具调用的角色交替：
+  assistant(ToolUse) → user(ToolResult) → assistant(回复) → ...
+        ↑ 自动交替，无需额外处理
+</div>
+
+<div class="trap">
+误区："ToolUseMessage 和 ToolResultMessage 是对称的，角色应该相同"。<br>
+正好相反。tool_use 跟随 assistant（因为是模型发出的动作），tool_result 跟随 user（因为是"用户侧"返回的结果）。这个角色分配是 API 级别的设计决策，理解它就能理解为什么工具调用天然满足交替规则。
+</div>
+
+<div class="cc-practice">
+源码中每种消息类型都是一个 class，共同实现 <code>Message</code> 接口。关键字段：<br>
+— <code>uuid</code>：唯一标识<br>
+— <code>role</code>：映射到 API 的 user/assistant<br>
+— <code>content</code>：消息内容<br>
+— <code>parentUuid</code>：指向父消息，构成消息链<br>
+— <code>tool_use_id</code>：仅 ToolUseMessage/ToolResultMessage 拥有，用于配对
+</div>
+
+<h2>3. 墓碑消息：为什么不能直接删除？</h2>
+
+<div class="question">
+上下文压缩时，为什么不能直接删除消息，而要引入"墓碑"机制？直接删不是更简单吗？
+<span class="company">腾讯</span> <span class="company">字节</span>
+<span class="level level-senior">senior</span>
+</div>
+
+<div class="answer">
+<p>直接删除消息会导致三个致命问题：</p>
+<p><b>a) 引用配对断裂</b>：<code>tool_result</code> 通过 <code>tool_use_id</code> 引用 <code>tool_use</code>。如果删除了 tool_use 消息但保留了 tool_result，API 就找不到配对的 tool_use，报错 400。</p>
+<p><b>b) UUID 链断裂</b>：消息通过 <code>parentUuid</code> 构成链表。删除中间节点，后续消息的 parentUuid 指向一个不存在的 UUID，链表断裂。</p>
+<p><b>c) 并发安全</b>：UI 可能正在渲染消息列表。直接删除会导致渲染崩溃——读到一个不存在的 UUID，引用空指针。</p>
+<p>墓碑机制的核心思路：<b>先标记，后清理</b>。标记为墓碑的消息在 API 调用时跳过，在 UI 渲染时隐藏，在安全时机再物理删除。这就是分布式系统中的 soft-delete 模式。</p>
+</div>
+
+<div class="diagram">
+墓碑机制的生命周期：
+
+  压缩时：标记墓碑
+      │
+      ▼
+  [UserMsg A] ← 正常
+  [ToolUse B] ← Tombstone！标记为 isTombstone = true
+  [ToolRes C] ← Tombstone！（因为 B 被标记，C 也必须标记，保持配对完整）
+  [AsstMsg D] ← 正常
+      │
+      ▼
+  API 调用时：normalizeMessagesForAPI() 跳过所有墓碑
+      │
+      ▼
+  安全时机（无渲染时）：物理删除墓碑消息，修复 parentUuid 链
+      │
+      ▼
+  [UserMsg A] ──→ [AsstMsg D]   ← 链表修复，D 的 parentUuid 指向 A
+
+  关键规则：tool_use 和 tool_result 必须同时标记墓碑！
+</div>
+
+<div class="trap">
+误区："删了 tool_use，保留 tool_result 就行，毕竟 tool_result 里有有用信息"。<br>
+大错。API 校验 tool_result 时会检查 <code>tool_use_id</code> 对应的 tool_use 是否存在。如果 tool_use 被删了，这个 tool_result 就成了"孤儿"，API 直接拒绝整个请求。所以配对消息必须同时标记墓碑。
+</div>
+
+<div class="depth">
+墓碑和 soft-delete 的工程对比：<br>
+— 数据库 soft-delete：加 <code>deleted_at</code> 字段，查询时 <code>WHERE deleted_at IS NULL</code><br>
+— CC 墓碑：加 <code>isTombstone</code> 标记，normalizeMessagesForAPI() 时过滤<br>
+— 共同点：都是"标记替代删除"，都是在读路径上做过滤而非写路径上做清理<br>
+— 区别：CC 的墓碑最终会被物理删除（节省内存），而数据库 soft-delete 通常永久保留（审计需要）<br>
+<br>
+这是一个通用模式：<b>在有引用关系和并发访问的数据结构中，删除永远不能是原地操作</b>。
+</div>
+
+<div class="cc-practice">
+源码关键：<br>
+1. <code>TombstoneMessage</code> 类型 — 墓碑消息本身也是一个消息类型，保留在消息列表中<br>
+2. <code>normalizeMessagesForAPI()</code> — 过滤掉墓碑后再合并同角色消息<br>
+3. 物理删除时机 — 在消息链处于稳定状态（无并发渲染）时执行，同时修复 parentUuid 指针<br>
+4. 配对标记 — 标记 tool_use 为墓碑时，自动查找并标记对应的 tool_result
+</div>
+
+<h2>4. 面试题：记忆系统和上下文压缩有什么区别？</h2>
+
+<div class="question">
+Claude Code 的记忆系统（MEMORY.md）和上下文压缩是同一回事吗？它们有什么区别？
+<span class="company">阿里</span> <span class="company">美团</span>
+<span class="level level-mid">mid</span>
+</div>
+
+<div class="answer">
+<p><b>完全不是同一回事</b>。核心区别在于作用域：</p>
+<p><b>记忆系统</b>：跨会话持久化。写在磁盘上的 MEMORY.md 文件，每次新对话启动时自动加载到 system prompt。即使关掉终端再打开，之前的记忆还在。</p>
+<p><b>上下文压缩</b>：会话内临时操作。当 token 数接近上限时，把旧消息压缩为摘要，释放 token 预算。关掉终端，压缩结果就没了。</p>
+</div>
+
+<table>
+<tr><th>维度</th><th>记忆系统</th><th>上下文压缩</th></tr>
+<tr><td>作用范围</td><td>跨会话</td><td>单次会话内</td></tr>
+<tr><td>存储位置</td><td>磁盘（MEMORY.md 文件）</td><td>内存（消息列表中的摘要消息）</td></tr>
+<tr><td>触发时机</td><td>对话结束时写入，对话开始时读取</td><td>token 接近上限时触发</td></tr>
+<tr><td>数据格式</td><td>结构化 Markdown</td><td>自然语言摘要</td></tr>
+<tr><td>可编辑性</td><td>用户可以直接编辑文件</td><td>对用户不可见</td></tr>
+</table>
+
+<div class="diagram">
+记忆 vs 压缩 的生命周期：
+
+  记忆系统（跨会话）：
+  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+  │ 会话 1      │     │ 会话 2      │     │ 会话 3      │
+  │ 写入 MEMORY │ ──→ │ 读取 MEMORY │ ──→ │ 读取 MEMORY │
+  │ 新增条目    │     │ 写入新条目  │     │ 使用累积记忆│
+  └─────────────┘     └─────────────┘     └─────────────┘
+         ↕                   ↕                   ↕
+     磁盘文件 MEMORY.md —————————————— 持久化 ———————
+
+  上下文压缩（会话内）：
+  ┌──────────────────────────────────────────┐
+  │ 单次会话                                  │
+  │ [msg1][msg2][msg3]...[msg50]  → token 满  │
+  │         ↓ 压缩                             │
+  │ [摘要][msg30]...[msg50]       → token 够  │
+  │         ↓ 会话结束                         │
+  │     摘要消失，不留存                        │
+  └──────────────────────────────────────────┘
+</div>
+
+<div class="trap">
+误区："MEMORY.md 什么都记，越大越好"。<br>
+MEMORY.md 有 200 行上限，超过会被截断。原因：它被注入到每次对话的 system prompt 中，太大就浪费 token 预算。所以 CC 用 <code>findRelevantMemories()</code> 语义筛选——不是全部注入，而是用 Sonnet 模型挑选最多 5 条最相关的记忆条目。
+</div>
+
+<div class="depth">
+记忆的四种分类及用途：<br>
+— <code>user</code>：用户偏好（如"我习惯用 TypeScript"）<br>
+— <code>feedback</code>：教训反馈（如"npm 需要代理"）<br>
+— <code>project</code>：项目信息（如版本号、架构）<br>
+— <code>reference</code>：参考信息（如常用路径、命令映射）<br>
+分类的目的：按需检索、优先级排序。项目级记忆比用户偏好更重要，因为项目上下文直接影响编码质量。
+</div>
+
+<div class="cc-practice">
+记忆检索源码：<code>findRelevantMemories()</code><br>
+流程：从所有 MEMORY.md 文件中提取条目 → 构造查询（当前对话上下文）→ 调用 Sonnet 模型打分 → 按相关度排序 → 取 top 5 注入 system prompt。<br>
+注意：Sonnet 而非 Opus，因为检索任务不需要最强模型，省成本。<br>
+截断逻辑：MEMORY.md 超过 200 行时，只保留最新的条目，旧的被丢弃。
+</div>
+
+<h2>5. 设计题：如果要设计一个 Agent 的长期记忆系统，你怎么做？</h2>
+
+<div class="question">
+如果让你从零设计一个编程 Agent 的长期记忆系统，你会怎么设计？用数据库还是文件？怎么检索？怎么注入？
+<span class="company">腾讯</span> <span class="company">字节</span> <span class="company">阿里</span>
+<span class="level level-senior">senior</span>
+</div>
+
+<div class="answer">
+<p>Claude Code 的答案是：<b>文件 + 分类 + 语义检索 + 自动注入</b>。</p>
+<p>四层设计：</p>
+<ul>
+  <li><b>存储层</b>：基于文件（MEMORY.md），不用数据库。原因：终端工具，不需要分布式；文件可读可编辑，用户能直接修改；零运维成本。</li>
+  <li><b>分类层</b>：4 种类型（user/feedback/project/reference），不同优先级和生命周期。</li>
+  <li><b>检索层</b>：<code>findRelevantMemories()</code> 用 LLM 做语义筛选，不是关键词匹配。最多注入 5 条，控制 token 开销。</li>
+  <li><b>注入层</b>：拼接到 system prompt 末尾，每次对话自动加载，对用户透明。</li>
+</ul>
+<p>Trade-off：文件方案简单但不可扩展（200 行上限）；数据库方案可扩展但引入运维复杂度。对于终端编码 Agent，文件方案是正确选择——用户只有一个人，数据量有限，简单可靠胜过一切。</p>
+</div>
+
+<div class="diagram">
+CC 长期记忆系统架构：
+
+  ┌─────────────────────────────────────────┐
+  │              用户终端                     │
+  │                                         │
+  │  ~/.claude/memory/                      │
+  │  ├── MEMORY.md          ← 全局记忆      │
+  │  └── project-xxx/                       │
+  │      └── MEMORY.md      ← 项目记忆      │
+  │                                         │
+  │  对话结束时                              │
+  │  对话上下文 → Sonnet → 写入 MEMORY.md   │
+  │                                         │
+  │  对话开始时                              │
+  │  MEMORY.md → findRelevantMemories()     │
+  │           → Sonnet 打分                 │
+  │           → top 5 条目                   │
+  │           → 注入 system prompt           │
+  └─────────────────────────────────────────┘
+
+  文件方案 vs 数据库方案：
+  ┌──────────────────┬────────────┬────────────┐
+  │ 维度              │ 文件方案    │ 数据库方案   │
+  ├──────────────────┼────────────┼────────────┤
+  │ 运维成本          │ 零         │ 高          │
+  │ 用户可编辑性      │ 直接编辑   │ 需要接口    │
+  │ 可扩展性          │ 200行上限  │ 无限        │
+  │ 检索效率          │ LLM语义检索│ 向量索引    │
+  │ 适用场景          │ 单用户终端 │ 多用户平台  │
+  └──────────────────┴────────────┴────────────┘
+</div>
+
+<div class="trap">
+误区："用向量数据库做记忆检索一定比文件好"。<br>
+不一定。向量数据库增加部署依赖（需要 Embedding 模型 + 向量索引 + 持久化存储），对于终端单用户场景是过度工程。CC 用 LLM 直接做语义筛选，精度足够且零额外依赖。只有当记忆条目达到万级以上时，向量数据库才有明显的性能优势。
+</div>
+
+<div class="depth">
+如果记忆量真的爆炸了怎么办？<br>
+三层渐进方案：<br>
+1. <b>短期内</b>：增大截断阈值，优化分类粒度（如按日期、按模块分子文件）<br>
+2. <b>中期</b>：引入本地 SQLite + 全文搜索，替代文件遍历，但仍然单机运行<br>
+3. <b>长期</b>：如果变成多用户平台，迁移到向量数据库 + 分级存储（热记忆在内存，冷记忆在磁盘）<br>
+关键原则：<b>架构随规模演进，不要提前优化</b>。CC 当前选择文件方案，正是因为它对当前场景刚好够用。
+</div>
+
+<div class="cc-practice">
+CC 源码记忆路径：<br>
+— 全局记忆：<code>~/.claude/memory/MEMORY.md</code><br>
+— 项目记忆：<code>.claude/memory/MEMORY.md</code>（项目根目录下）<br>
+— 写入：对话结束时，Sonnet 提取关键信息，追加到 MEMORY.md<br>
+— 读取：<code>findRelevantMemories()</code> 从所有 MEMORY.md 中检索<br>
+— 截断：<code>MAX_MEMORY_LINES = 200</code>，超过则删除最旧的条目<br>
+— 注入：<code>systemPrompt += relevantMemories</code>，拼在系统提示词末尾
+</div>
+
+<div class="nav">
+<a href="day07.html">&larr; day07.html</a> | <a href="index.html">index.html</a> | <a href="day09.html">day09.html &rarr;</a>
+</div>
+</body>
+</html>
