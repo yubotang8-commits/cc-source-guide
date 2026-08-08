@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day 06 - 技能、斜杠命令与工具编排</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Day 06 - 技能、斜杠命令与工具编排</h1>
+
+<!-- ==================== 第1题 ==================== -->
+
+<h2>1. /commit 为什么不直接在本地完成？</h2>
+<span class="company">蚂蚁</span> <span class="company">字节</span>
+<span class="level level-senior">Senior</span>
+
+<div class="question">
+<code>/commit</code> 命令的本质是什么？为什么不把它设计成一个纯本地操作，直接生成 commit message 并提交？
+</div>
+
+<div class="answer">
+<p><code>/commit</code> 的类型是 <code>type: 'prompt'</code>，它并不直接执行 git commit，而是生成一段预设 prompt 发送给 LLM。LLM 根据当前 diff 的语义推理出高质量的 commit message。</p>
+<p>关键原因：</p>
+<ol>
+  <li><strong>Commit message 需要语义理解</strong> — 简单的 diff 统计（如 "修改了 3 个文件"）无法替代 LLM 对代码变更意图的推理。LLM 能读出"修复了登录超时的 bug"而非"改了 timeout 变量"。</li>
+  <li><strong>allowedTools 限制</strong> — <code>/commit</code> 配置了 <code>allowedTools</code>，只暴露 Bash/Read/Write 三个工具，比用户自由输入更可控，避免 LLM 在提交流程中做多余操作。</li>
+  <li><strong>流程可控性</strong> — 整个提交流程（读 diff → 生成 message → 执行 git commit）由 LLM agent 驱动，但工具权限被严格收窄。</li>
+</ol>
+</div>
+
+<div class="trap">
+误区：认为 <code>/commit</code> 只是 <code>git commit -m "..."</code> 的快捷方式。实际上它是一个 agent 子任务，LLM 在其中做了 diff 分析和语义推理。另一个误区是"所有斜杠命令都需要 LLM"——<code>/clear</code> 就不需要。
+</div>
+
+<div class="depth">
+<p>对比 <code>/commit</code>（<code>type: 'prompt'</code>）和 <code>/clear</code>（<code>type: 'local'</code>）的设计原则：</p>
+<ul>
+  <li><strong>确定性操作应该用 local 命令</strong>——清除上下文、切换主题这些操作不需要 LLM 判断，纯计算即可完成，不应该浪费 token。</li>
+  <li><strong>需要推理的操作才用 prompt 命令</strong>——如果操作的正确性依赖于对上下文的理解，就必须经过 LLM。</li>
+  <li>这一原则可推广：任何系统设计 AI 交互时，先问"这个操作需要理解吗？"不需要就不该调用 LLM。</li>
+</ul>
+</div>
+
+<div class="cc-practice">
+<p>在 CC 源码中，斜杠命令的 <code>type</code> 字段决定了执行路径：</p>
+<div class="diagram">
+/commit (type: 'prompt')
+  │
+  ├─→ 构建 preset prompt（含 diff 信息）
+  ├─→ LLM 推理生成 commit message
+  └─→ 通过 allowedTools 执行 git commit
+
+/clear (type: 'local')
+  │
+  └─→ 直接调用本地函数清除上下文
+      （零 token 消耗，毫秒级完成）
+</div>
+</div>
+
+<!-- ==================== 第2题 ==================== -->
+
+<h2>2. 技能 = 斜杠命令的统一接口</h2>
+<span class="level level-mid">Mid</span>
+
+<div class="question">
+CC 技能（Skills）和内置斜杠命令（如 /commit、/clear）是什么关系？为什么要这样设计？
+</div>
+
+<div class="answer">
+<p><code>createSkillCommand()</code> 返回的命令对象类型为 <code>type: 'prompt'</code>，与内置命令使用同一套接口、注册在同一张命令表中。</p>
+<p>两者的唯一差异：</p>
+<ul>
+  <li><strong>source 字段</strong>：<code>'builtin'</code> vs <code>'skills'</code>，标识命令来源。</li>
+  <li><strong>定义格式</strong>：内置命令用 TypeScript 代码定义，技能用 Markdown 文件定义。</li>
+</ul>
+<p>设计洞察：<strong>统一接口优于特殊处理</strong>。技能不需要一套独立的注册/调度机制，它只需要"变成"一个斜杠命令，就能复用整个命令执行流水线。</p>
+</div>
+
+<div class="diagram">
+内置斜杠命令           技能 (Skill)
+    │                     │
+    │ TypeScript          │ Markdown
+    │ 定义                 │ 定义
+    ▼                     ▼
+  命令对象 ◄── createSkillCommand() ──► 命令对象
+    │                                     │
+    │ source: 'builtin'                   │ source: 'skills'
+    │                                     │
+    └──────────┬──────────────────────────┘
+               │  统一命令表
+               ▼
+        命令调度器 (同一套执行流水线)
+               │
+               ▼
+          type: 'prompt' → 发给 LLM
+          type: 'local'  → 本地执行
+</div>
+
+<div class="trap">
+误区：认为技能是一个"插件系统"，需要单独的加载器和运行时。实际上技能只是命令表里多了一行记录，执行路径与内置命令完全相同。
+</div>
+
+<div class="depth">
+<p>这个设计对应一个经典架构模式：<strong>统一接口（Uniform Interface）</strong>。</p>
+<ul>
+  <li>REST API 的核心原则——所有资源用同一套 HTTP 动词操作。</li>
+  <li>Plugin pattern——插件不定义新协议，只填充已有接口。</li>
+  <li>好处：调度器不需要 if/else 判断"这是内置还是技能"，降低认知复杂度，也降低扩展成本。</li>
+</ul>
+</div>
+
+<!-- ==================== 第3题 ==================== -->
+
+<h2>3. 怎么控制工具调用的 token 消耗？</h2>
+<span class="company">快手</span> <span class="company">淘天</span>
+<span class="level level-senior">Senior</span>
+
+<div class="question">
+LLM 每次调用都需要把所有工具的描述塞进 prompt，工具越多 token 消耗越大。如何优化？
+</div>
+
+<div class="answer">
+<p><strong>工具描述就是 token！</strong> 每个工具的 name + description + input_schema 都占用 prompt 空间，这是隐性成本。</p>
+<p>优化策略（从易到难）：</p>
+
+<table>
+<tr><th>策略</th><th>做法</th><th>效果</th></tr>
+<tr><td>a) 动态工具加载</td><td>只给当前任务需要的工具</td><td>立竿见影，prompt 缩短最多</td></tr>
+<tr><td>b) 工具结果预算</td><td>限制工具返回内容的长度</td><td>防止单次调用撑爆上下文</td></tr>
+<tr><td>c) 压缩工具描述</td><td>缩短 description 文本</td><td>边际收益递减，影响可读性</td></tr>
+<tr><td>d) 模型路由</td><td>简单任务用小模型 + 少工具</td><td>全局最优但实现复杂</td></tr>
+</table>
+
+<p>CC 的实践：<code>allowedTools</code> 配置在技能定义中，限制了 LLM 能"看到"的工具集合。比如 <code>/commit</code> 只暴露 Bash/Read/Write，其他十几个工具的描述完全不进 prompt。</p>
+</div>
+
+<div class="diagram">
+全量工具 (20+ tools, ~8000 tokens)
+  │
+  │ allowedTools 过滤
+  ▼
+技能可见工具 (3 tools, ~1200 tokens)
+  │
+  │ 构建 prompt
+  ▼
+System Prompt + 工具描述 + 用户消息 → LLM
+
+节省: ~6800 tokens/次调用
+</div>
+
+<div class="trap">
+<p>两个常见误区：</p>
+<ol>
+  <li><strong>只关注工具调用结果的 token</strong>，忽略了工具描述本身就在消耗 prompt token——这是"固定成本"，不管工具是否被调用都要付。</li>
+  <li><strong>认为工具越多越好</strong>。工具数量和 LLM 选择准确性负相关——工具越多，选错工具的概率越高，而且 token 成本线性增长。</li>
+</ol>
+</div>
+
+<div class="depth">
+<p>更深层的优化思路：<strong>工具分层</strong>。</p>
+<ul>
+  <li>Core tools（Read/Write/Bash）— 几乎每个任务都需要，始终加载。</li>
+  <li>Domain tools（如 web search、database query）— 按技能/场景按需加载。</li>
+  <li>Niche tools（如特定 API 调用）— 极少场景使用，可延迟加载（甚至两轮交互：先让 LLM 声明需要什么工具，再注入）。</li>
+</ul>
+<p>这本质上是"索引 + 按需加载"的思想，类似操作系统的虚拟内存——不是所有页都在物理内存里。</p>
+</div>
+
+<div class="cc-practice">
+<p>CC 源码中 <code>allowedTools</code> 的工作方式：</p>
+<ol>
+  <li>技能 Markdown 中声明 <code>allowedTools: [Bash, Read, Write]</code></li>
+  <li>命令调度器读取该配置，在构建 LLM 请求时过滤工具列表</li>
+  <li>未列出的工具不出现在 system prompt 中，LLM 无法调用</li>
+</ol>
+<p>这同时实现了两个目标：<strong>节约 token</strong>（少描述）和<strong>安全控制</strong>（少能力）。</p>
+</div>
+
+<!-- ==================== 第4题 ==================== -->
+
+<h2>4. 如何设计一个可扩展的工具注册系统？</h2>
+<span class="level level-senior">Senior</span>
+
+<div class="question">
+如果你要设计一个支持动态添加工具（如 MCP 外部工具）的注册系统，核心接口应该怎么定义？
+</div>
+
+<div class="answer">
+<p>CC 的答案：<strong>Tool 接口 + 工具注册表 + 动态添加（MCP）</strong>。</p>
+<p>核心接口定义：</p>
+<pre>
+interface Tool {
+  name: string           // 唯一标识
+  description: string    // 告诉 LLM 这个工具做什么
+  input_schema: JSONSchema  // 参数结构，LLM 据此生成调用
+  execute(params): Promise&lt;string&gt;  // 实际执行逻辑
+  isConcurrencySafe: boolean  // 是否可并行调用
+}
+</pre>
+<p>关键设计决策：</p>
+<ol>
+  <li><strong>接口不依赖具体工具实现</strong> — MCP 工具和内置工具实现方式完全不同（一个走网络协议，一个走本地函数），但对外呈现同一套接口。</li>
+  <li><strong>注册表是唯一的真相来源</strong> — 所有工具（内置 + MCP + 技能注入）都注册到同一张表，LLM 不需要知道工具来自哪里。</li>
+  <li><strong>动态添加/移除</strong> — MCP server 连接时注册工具，断开时移除，无需重启。</li>
+</ol>
+</div>
+
+<div class="diagram">
+  内置工具            MCP 工具            技能工具
+    │                   │                   │
+    │ Tool 接口         │ Tool 接口          │ Tool 接口
+    │ (本地函数)        │ (网络调用)         │ (受限子集)
+    ▼                   ▼                   ▼
+  ┌─────────────────────────────────────────────┐
+  │            工具注册表 (Tool Registry)         │
+  │                                             │
+  │  name → Tool (统一接口，不区分来源)            │
+  └──────────────────┬──────────────────────────┘
+                     │
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+     LLM 选择    权限过滤    执行调度
+                     │
+              allowedTools 过滤
+                     │
+                     ▼
+              可执行工具子集 → LLM prompt
+</div>
+
+<div class="trap">
+误区：在 Tool 接口里加 <code>source: 'builtin' | 'mcp'</code> 字段来区分工具来源。这违反了统一接口原则——调度器不应该关心工具来自哪里，只需要知道它能不能执行、安不安全。来源信息属于元数据，不属于行为接口。
+</div>
+
+<div class="depth">
+<p>这是经典的 <strong>Plugin Pattern</strong>（插件模式）：</p>
+<ul>
+  <li><strong>核心不变</strong>：Tool 接口一旦定义，极少修改。</li>
+  <li><strong>扩展开放</strong>：新工具（MCP、第三方）只需要实现接口就能接入。</li>
+  <li><strong>修改封闭</strong>：添加新工具不需要改动注册表或调度器的代码。</li>
+</ul>
+<p>进阶考量：</p>
+<ul>
+  <li><strong>工具冲突</strong>：不同 MCP server 可能提供同名工具。注册表需要命名空间（如 <code>mcp__serverName__toolName</code>）来避免冲突。</li>
+  <li><strong>工具能力声明</strong>：是否需要 <code>capabilities</code> 字段，让调度器在执行前判断工具是否满足当前需求？</li>
+  <li><strong>工具版本</strong>：MCP server 升级后工具 schema 变了怎么办？需要版本感知。</li>
+</ul>
+</div>
+
+<div class="cc-practice">
+<p>CC 源码中工具注册的实际流程：</p>
+<ol>
+  <li>启动时，内置工具（Read/Write/Bash/Glob/Grep 等）注册到 Tool Registry</li>
+  <li>MCP server 连接成功后，调用 <code>tools/list</code> 获取工具列表，逐个转换为 Tool 接口并注册</li>
+  <li>技能激活时，根据 <code>allowedTools</code> 从注册表中筛选可用工具</li>
+  <li>LLM 请求时，只有筛选后的工具描述进入 prompt</li>
+  <li>MCP server 断开时，对应工具从注册表中移除</li>
+</ol>
+<p>整个过程对 LLM 完全透明——它只知道"我有这些工具可用"，不关心工具的实现。</p>
+</div>
+
+<!-- ==================== 导航 ==================== -->
+
+<div class="nav">
+  <a href="day05.html">&larr; day05</a> |
+  <a href="index.html">index</a> |
+  <a href="day07.html">day07 &rarr;</a>
+</div>
+
+</body>
+</html>
